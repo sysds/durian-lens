@@ -1,0 +1,91 @@
+{
+  "project_info": {
+    "project_number": "926317161206",
+    "firebase_url": "https://durianlens-default-rtdb.firebaseio.com",
+    "project_id": "durianlens",
+    "storage_bucket": "durianlens.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:926317161206:android:b8b6b28dac0b655c505ad7",
+        "android_client_info": {
+          "package_name": "com.example.durian_classification"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "926317161206-q6ts8uaa2033r3qq1joe57ijr11qgtli.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAELZwGz3mmXRq4kt-96IZ5l-1rd1z7K6M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "926317161206-q6ts8uaa2033r3qq1joe57ijr11qgtli.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "926317161206-5l2ua8qj9k0i0oaqkdp2be2sn2fd0lhe.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.durianClassification.RunnerTests"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:926317161206:android:85f6b79b82728f63505ad7",
+        "android_client_info": {
+          "package_name": "com.example.durian_lens"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "926317161206-laks8q66ub5a7o31uu1bc60rmgrbr8q4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.durian_lens",
+            "certificate_hash": "0e8ede9a97a67c72e4d0338c31a99ed81744b7c2"
+          }
+        },
+        {
+          "client_id": "926317161206-q6ts8uaa2033r3qq1joe57ijr11qgtli.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAELZwGz3mmXRq4kt-96IZ5l-1rd1z7K6M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "926317161206-q6ts8uaa2033r3qq1joe57ijr11qgtli.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "926317161206-5l2ua8qj9k0i0oaqkdp2be2sn2fd0lhe.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.durianClassification.RunnerTests"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

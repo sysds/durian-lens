@@ -1,0 +1,168 @@
+import 'dart:io';
+
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+
+import '../services/community_service.dart';
+
+class CreatePostPage extends StatefulWidget {
+  const CreatePostPage({super.key});
+
+  @override
+  State<CreatePostPage> createState() => _CreatePostPageState();
+}
+
+class _CreatePostPageState extends State<CreatePostPage> {
+  final TextEditingController _captionCtrl = TextEditingController();
+  final CommunityService _service = CommunityService();
+  File? _imageFile;
+  bool _loading = false;
+  String _category = 'general';
+
+  @override
+  void dispose() {
+    _captionCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (file != null) {
+      setState(() => _imageFile = File(file.path));
+    }
+  }
+
+  Future<String?> _uploadImage() async {
+    if (_imageFile == null) return null;
+    final ref = FirebaseStorage.instance
+        .ref()
+        .child('community_images/${DateTime.now().millisecondsSinceEpoch}.jpg');
+    await ref.putFile(_imageFile!);
+    return await ref.getDownloadURL();
+  }
+
+  Future<void> _submit() async {
+    final caption = _captionCtrl.text.trim();
+    if (caption.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please write a caption')));
+      return;
+    }
+
+    setState(() => _loading = true);
+
+    try {
+      final imageUrl = await _uploadImage();
+      await _service.createPost(
+        caption: caption,
+        imageUrl: imageUrl,
+        category: _category,
+      );
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Post published!')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xffF1F8E9),
+      appBar: AppBar(
+        title: const Text('Create Post'),
+        backgroundColor: Colors.green.shade700,
+        actions: [
+          TextButton(
+            onPressed: _loading ? null : _submit,
+            child: _loading
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Text('Post', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Category
+            Wrap(
+              spacing: 8,
+              children: [
+                'general',
+                'qna',
+                'review',
+                'tip',
+              ].map((cat) {
+                final selected = _category == cat;
+                return ChoiceChip(
+                  label: Text(cat.toUpperCase()),
+                  selected: selected,
+                  selectedColor: Colors.green.shade200,
+                  onSelected: (_) => setState(() => _category = cat),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 16),
+
+            // Caption
+            TextField(
+              controller: _captionCtrl,
+              maxLines: 5,
+              decoration: InputDecoration(
+                hintText: 'What is on your mind?',
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Image preview
+            if (_imageFile != null)
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: Image.file(_imageFile!, height: 200, width: double.infinity, fit: BoxFit.cover),
+                  ),
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: CircleAvatar(
+                      backgroundColor: Colors.black54,
+                      child: IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white, size: 18),
+                        onPressed: () => setState(() => _imageFile = null),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _pickImage,
+              icon: const Icon(Icons.photo_library),
+              label: const Text('Add Photo'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green.shade700,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
