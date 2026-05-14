@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
 import 'about_page.dart';
 import 'feedback_page.dart';
-import 'tutorial_page.dart';
 
-class SettingsMenuPage extends StatelessWidget {
-  const SettingsMenuPage({super.key});
+class SettingsPage extends StatelessWidget {
+  const SettingsPage({super.key});
 
   Future<void> _launchUrl(String url) async {
     final uri = Uri.parse(url);
@@ -25,52 +25,52 @@ class SettingsMenuPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Menu'),
+        title: const Text('Settings'),
         backgroundColor: AppColors.primaryGreen,
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Appearance
           Container(
             decoration: AppDecorations.cardDecoration,
             child: Column(
               children: [
-                _menuTile(Icons.settings, 'Settings', () {
-                  showModalBottomSheet(
-                    context: context,
-                    shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                    ),
-                    builder: (_) => SafeArea(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ListTile(
-                            leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                            title: const Text('Clear Scan History'),
-                            subtitle: const Text('Remove all local detection records'),
-                            onTap: () {
-                              Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Long-press History page header to clear')),
-                              );
-                            },
-                          ),
-                          ListTile(
-                            leading: const Icon(Icons.replay, color: AppColors.primaryGreen),
-                            title: const Text('Replay Tutorial'),
-                            onTap: () {
-                              Navigator.pop(context);
-                              _navigate(context, const TutorialPage());
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }),
+                const ListTile(
+                  leading: Icon(Icons.palette, color: AppColors.primaryGreen),
+                  title: Text('Appearance'),
+                  subtitle: Text('Choose your preferred theme'),
+                ),
                 const Divider(height: 1, indent: 16, endIndent: 16),
-                _menuTile(Icons.feedback, 'Give Feedback', () => _navigate(context, const FeedbackPage())),
+                ValueListenableBuilder<ThemeMode>(
+                  valueListenable: SettingsService.themeMode,
+                  builder: (context, mode, _) {
+                    return Column(
+                      children: [
+                        _themeTile('Light', Icons.wb_sunny, mode == ThemeMode.light, () {
+                          SettingsService.setThemeMode(ThemeMode.light);
+                        }),
+                        _themeTile('Dark', Icons.nights_stay, mode == ThemeMode.dark, () {
+                          SettingsService.setThemeMode(ThemeMode.dark);
+                        }),
+                        _themeTile('System Default', Icons.settings_suggest, mode == ThemeMode.system, () {
+                          SettingsService.setThemeMode(ThemeMode.system);
+                        }),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // General
+          Container(
+            decoration: AppDecorations.cardDecoration,
+            child: Column(
+              children: [
+                _menuTile(Icons.feedback_outlined, 'Give Feedback', () => _navigate(context, const FeedbackPage())),
                 const Divider(height: 1, indent: 16, endIndent: 16),
                 _menuTile(Icons.share, 'Recommend Durian Lens', () {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -111,15 +111,31 @@ class SettingsMenuPage extends StatelessWidget {
                     ),
                   );
                 }),
-                const Divider(height: 1, indent: 16, endIndent: 16),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // About
+          Container(
+            decoration: AppDecorations.cardDecoration,
+            child: Column(
+              children: [
                 _menuTile(Icons.info_outline, 'About', () => _navigate(context, const AboutPage())),
-                const Divider(height: 1, indent: 16, endIndent: 16),
-                _menuTile(Icons.school, 'Quickstart (Tutorial)', () => _navigate(context, const TutorialPage())),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _themeTile(String label, IconData icon, bool selected, VoidCallback onTap) {
+    return ListTile(
+      leading: Icon(icon, color: selected ? AppColors.primaryGreen : AppColors.textMuted),
+      title: Text(label),
+      trailing: selected ? const Icon(Icons.check, color: AppColors.primaryGreen) : null,
+      onTap: onTap,
     );
   }
 

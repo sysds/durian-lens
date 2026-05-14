@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/durian_library.dart';
+import '../theme/app_theme.dart';
 
 class LibraryPage extends StatefulWidget {
   const LibraryPage({super.key});
@@ -46,31 +47,34 @@ class _LibraryPageState extends State<LibraryPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffF1F8E9),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Durian Library'),
-        backgroundColor: Colors.green.shade700,
+        backgroundColor: AppColors.primaryGreen,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(16),
                   child: TextField(
                     onChanged: _search,
                     decoration: InputDecoration(
                       hintText: 'Search durian type...',
-                      prefixIcon: const Icon(Icons.search),
+                      prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
                       filled: true,
                       fillColor: Colors.white,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
                   ),
                 ),
                 Expanded(
                   child: ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     itemCount: _filtered.length,
                     itemBuilder: (context, index) {
                       final item = _filtered[index];
@@ -86,18 +90,20 @@ class _LibraryPageState extends State<LibraryPage> {
   Widget _buildItemCard(DurianLibraryItem item) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4))],
-      ),
+      decoration: AppDecorations.cardDecoration,
       child: ExpansionTile(
         tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        collapsedShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: Text(item.name, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-        subtitle: Text('${item.origin} • ${item.season}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+        collapsedShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          item.name,
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+        ),
+        subtitle: Text(
+          '${item.origin} • ${item.season}',
+          style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+        ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -124,15 +130,18 @@ class _LibraryPageState extends State<LibraryPage> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: Colors.green.shade700),
+          Icon(icon, size: 18, color: AppColors.primaryGreen),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+                Text(
+                  label,
+                  style: const TextStyle(fontSize: 12, color: AppColors.textMuted, fontWeight: FontWeight.w600),
+                ),
                 const SizedBox(height: 2),
-                Text(value, style: const TextStyle(fontSize: 14)),
+                Text(value, style: const TextStyle(fontSize: 14, color: AppColors.textPrimary)),
               ],
             ),
           ),

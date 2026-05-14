@@ -1,10 +1,10 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../models/journal_entry.dart';
 import '../services/csv_service.dart';
 import '../services/journal_service.dart';
+import '../theme/app_theme.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -33,11 +33,15 @@ class _HistoryPageState extends State<HistoryPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Delete Entry?'),
         content: const Text('This will permanently remove the journal entry.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
         ],
       ),
     );
@@ -56,6 +60,7 @@ class _HistoryPageState extends State<HistoryPage> {
     final result = await showDialog<Map<String, String>?>(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Edit Notes'),
         content: SingleChildScrollView(
           child: Column(
@@ -101,68 +106,142 @@ class _HistoryPageState extends State<HistoryPage> {
     _refresh();
   }
 
+  Color _bannerColor(String variety) {
+    final v = variety.toLowerCase();
+    if (v.contains('musang') || v.contains('king')) {
+      return AppColors.musangKingGreen;
+    }
+    if (v.contains('black') || v.contains('thorn')) {
+      return AppColors.blackThornOrange;
+    }
+    if (v.contains('d24')) {
+      return Colors.brown.shade400;
+    }
+    return AppColors.primaryGreen;
+  }
+
   @override
   Widget build(BuildContext context) {
     final entries = _journalService.getAllEntries();
 
     return Scaffold(
-      backgroundColor: const Color(0xffF1F8E9),
-      appBar: AppBar(
-        title: const Text('Detection History'),
-        backgroundColor: Colors.green.shade700,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.download),
-            tooltip: 'Export CSV',
-            onPressed: _exportCsv,
+      backgroundColor: AppColors.background,
+      body: Column(
+        children: [
+          // Green Header
+          GreenHeader(
+            title: 'Detection History',
+            height: 100,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.filter_list, color: Colors.white),
+                onPressed: () {},
+              ),
+              IconButton(
+                icon: const Icon(Icons.download, color: Colors.white),
+                onPressed: _exportCsv,
+              ),
+            ],
+          ),
+
+          // Body
+          Expanded(
+            child: entries.isEmpty
+                ? const Center(
+                    child: Text(
+                      'No history yet',
+                      style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: entries.length,
+                    itemBuilder: (context, index) {
+                      final item = entries[index];
+                      return _buildEntryCard(item);
+                    },
+                  ),
           ),
         ],
       ),
-      body: entries.isEmpty
-          ? const Center(child: Text('No history yet', style: TextStyle(fontSize: 16)))
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: entries.length,
-              itemBuilder: (context, index) {
-                final item = entries[index];
-                return _buildEntryCard(item);
-              },
-            ),
     );
   }
 
   Widget _buildEntryCard(JournalEntry item) {
-    final file = File(item.photoPath);
-    final hasImage = file.existsSync();
+    final banner = _bannerColor(item.variety);
+    final dateStr = DateFormat('d MMM yyyy, HH:mm').format(item.date);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 14, offset: Offset(0, 8)),
-        ],
-      ),
+      decoration: AppDecorations.cardDecoration,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
-            child: hasImage
-                ? Image.file(
-                    file,
-                    height: 220,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  )
-                : Container(
-                    height: 220,
-                    width: double.infinity,
-                    color: Colors.grey.shade300,
-                    child: const Icon(Icons.broken_image, size: 64, color: Colors.grey),
+          // Colored banner
+          Container(
+            height: 110,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: banner,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Stack(
+              children: [
+                // Leaf icon background
+                Positioned(
+                  right: 20,
+                  top: 20,
+                  child: Icon(
+                    Icons.eco,
+                    size: 60,
+                    color: Colors.white.withValues(alpha: 0.2),
                   ),
+                ),
+                // Variety chip
+                Positioned(
+                  left: 16,
+                  bottom: 16,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      item.variety,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+                // Confidence
+                Positioned(
+                  right: 16,
+                  bottom: 16,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${item.confidence.toStringAsFixed(1)}%',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
+
+          // Details
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -170,39 +249,29 @@ class _HistoryPageState extends State<HistoryPage> {
               children: [
                 Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: Colors.green.shade100,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        item.variety,
-                        style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.bold),
-                      ),
+                    const Icon(Icons.access_time, size: 14, color: AppColors.textMuted),
+                    const SizedBox(width: 6),
+                    Text(
+                      dateStr,
+                      style: AppTextStyles.caption,
                     ),
                     const Spacer(),
                     IconButton(
-                      icon: const Icon(Icons.edit_note, color: Colors.blue),
+                      icon: Icon(Icons.edit_note, color: AppColors.primaryGreen.withValues(alpha: 0.7)),
                       onPressed: () => _editNotes(item),
                       tooltip: 'Edit Notes',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
                     ),
+                    const SizedBox(width: 16),
                     IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
                       onPressed: () => _deleteEntry(item.id),
                       tooltip: 'Delete',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
                     ),
                   ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'Confidence: ${item.confidence.toStringAsFixed(2)}%',
-                  style: const TextStyle(fontSize: 15, color: Colors.black54),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  item.date.toLocal().toString().split('.').first,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
                 if (item.taste != null && item.taste!.isNotEmpty)
                   _noteLine(Icons.restaurant, 'Taste', item.taste!),
@@ -222,16 +291,16 @@ class _HistoryPageState extends State<HistoryPage> {
 
   Widget _noteLine(IconData icon, String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsets.only(top: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: Colors.grey),
-          const SizedBox(width: 6),
+          Icon(icon, size: 14, color: AppColors.textMuted),
+          const SizedBox(width: 8),
           Expanded(
             child: RichText(
               text: TextSpan(
-                style: const TextStyle(fontSize: 13, color: Colors.black87),
+                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
                 children: [
                   TextSpan(text: '$label: ', style: const TextStyle(fontWeight: FontWeight.w600)),
                   TextSpan(text: value),

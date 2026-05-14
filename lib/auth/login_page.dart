@@ -1,7 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../page/home_page.dart';
+import '../theme/app_theme.dart';
 import 'signup_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -39,7 +41,7 @@ class _LoginPageState extends State<LoginPage> {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const HomePage()),
-            (route) => false,
+        (route) => false,
       );
     } on FirebaseAuthException catch (e) {
       String message = "Login failed";
@@ -56,6 +58,38 @@ class _LoginPageState extends State<LoginPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
+      );
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  Future<void> _googleSignIn() async {
+    setState(() => loading = true);
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        setState(() => loading = false);
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      await FirebaseAuth.instance.signInWithCredential(credential);
+
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const HomePage()),
+        (route) => false,
+      );
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Google sign-in failed: ${e.message}')),
       );
     } finally {
       if (mounted) setState(() => loading = false);
@@ -80,7 +114,7 @@ class _LoginPageState extends State<LoginPage> {
       controller: controller,
       obscureText: obscure,
       decoration: InputDecoration(
-        prefixIcon: Icon(icon, color: Colors.green),
+        prefixIcon: Icon(icon, color: AppColors.primaryGreen),
         suffixIcon: suffix,
         hintText: hint,
         filled: true,
@@ -97,7 +131,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffF1F8E9),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(22),
@@ -110,13 +144,13 @@ class _LoginPageState extends State<LoginPage> {
                 child: Container(
                   padding: const EdgeInsets.all(22),
                   decoration: BoxDecoration(
-                    color: Colors.green.shade100,
+                    color: AppColors.primaryGreen.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.eco,
                     size: 75,
-                    color: Colors.green.shade800,
+                    color: AppColors.primaryGreen,
                   ),
                 ),
               ),
@@ -128,6 +162,7 @@ class _LoginPageState extends State<LoginPage> {
                 style: TextStyle(
                   fontSize: 31,
                   fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
                 ),
               ),
 
@@ -135,7 +170,7 @@ class _LoginPageState extends State<LoginPage> {
 
               const Text(
                 "Login to continue durian detection",
-                style: TextStyle(color: Colors.black54),
+                style: TextStyle(color: AppColors.textSecondary),
               ),
 
               const SizedBox(height: 28),
@@ -156,7 +191,7 @@ class _LoginPageState extends State<LoginPage> {
                 suffix: IconButton(
                   icon: Icon(
                     hidePassword ? Icons.visibility_off : Icons.visibility,
-                    color: Colors.grey,
+                    color: AppColors.textMuted,
                   ),
                   onPressed: () {
                     setState(() => hidePassword = !hidePassword);
@@ -172,7 +207,7 @@ class _LoginPageState extends State<LoginPage> {
                 child: ElevatedButton(
                   onPressed: loading ? null : login,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green.shade700,
+                    backgroundColor: AppColors.primaryGreen,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(18),
                     ),
@@ -180,12 +215,39 @@ class _LoginPageState extends State<LoginPage> {
                   child: loading
                       ? const CircularProgressIndicator(color: Colors.white)
                       : const Text(
-                    "Login",
+                          "Login",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Google Sign-In
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: OutlinedButton.icon(
+                  onPressed: loading ? null : _googleSignIn,
+                  icon: const Text(
+                    'G',
                     style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 17,
+                      color: Colors.redAccent,
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
+                  ),
+                  label: const Text(
+                    'Sign in with Google',
+                    style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppColors.divider),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                   ),
                 ),
               ),
@@ -195,7 +257,7 @@ class _LoginPageState extends State<LoginPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Don't have an account? "),
+                  const Text("Don't have an account? ", style: TextStyle(color: AppColors.textSecondary)),
                   GestureDetector(
                     onTap: () {
                       Navigator.pushReplacement(
@@ -206,7 +268,7 @@ class _LoginPageState extends State<LoginPage> {
                     child: const Text(
                       "Sign Up",
                       style: TextStyle(
-                        color: Colors.green,
+                        color: AppColors.primaryGreen,
                         fontWeight: FontWeight.bold,
                       ),
                     ),

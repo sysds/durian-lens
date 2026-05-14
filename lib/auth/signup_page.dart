@@ -1,8 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../page/home_page.dart';
+import '../theme/app_theme.dart';
 import 'login_page.dart';
 
 class SignUpPage extends StatefulWidget {
@@ -20,6 +22,50 @@ class _SignUpPageState extends State<SignUpPage> {
   bool loading = false;
   bool hidePassword = true;
 
+  Future<void> _googleSignUp() async {
+    setState(() => loading = true);
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        setState(() => loading = false);
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+      final user = userCred.user;
+
+      if (user != null) {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'uid': user.uid,
+          'name': user.displayName ?? 'Durian User',
+          'email': user.email ?? '',
+          'displayName': user.displayName ?? 'Durian User',
+          'photoURL': user.photoURL,
+          'createdAt': Timestamp.now(),
+        }, SetOptions(merge: true));
+      }
+
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const HomePage()),
+        (route) => false,
+      );
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Google sign-up failed: ${e.message}')),
+      );
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
   Future<void> signUp() async {
     if (nameController.text.isEmpty ||
         emailController.text.isEmpty ||
@@ -34,18 +80,21 @@ class _SignUpPageState extends State<SignUpPage> {
 
     try {
       final credential =
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
 
       final uid = credential.user!.uid;
 
-      await FirebaseDatabase.instance.ref("users/$uid").set({
-        "uid": uid,
-        "name": nameController.text.trim(),
-        "email": emailController.text.trim(),
-        "createdAt": DateTime.now().toIso8601String(),
+      await credential.user!.updateDisplayName(nameController.text.trim());
+
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'uid': uid,
+        'name': nameController.text.trim(),
+        'email': emailController.text.trim(),
+        'displayName': nameController.text.trim(),
+        'createdAt': Timestamp.now(),
       });
 
       if (!mounted) return;
@@ -53,7 +102,7 @@ class _SignUpPageState extends State<SignUpPage> {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const HomePage()),
-            (route) => false,
+        (route) => false,
       );
     } on FirebaseAuthException catch (e) {
       String message = "Signup failed";
@@ -93,7 +142,7 @@ class _SignUpPageState extends State<SignUpPage> {
       controller: controller,
       obscureText: obscure,
       decoration: InputDecoration(
-        prefixIcon: Icon(icon, color: Colors.green),
+        prefixIcon: Icon(icon, color: AppColors.primaryGreen),
         suffixIcon: suffix,
         hintText: hint,
         filled: true,
@@ -110,7 +159,7 @@ class _SignUpPageState extends State<SignUpPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffF1F8E9),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(22),
@@ -123,13 +172,13 @@ class _SignUpPageState extends State<SignUpPage> {
                 child: Container(
                   padding: const EdgeInsets.all(22),
                   decoration: BoxDecoration(
-                    color: Colors.green.shade100,
+                    color: AppColors.primaryGreen.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.eco,
                     size: 70,
-                    color: Colors.green.shade800,
+                    color: AppColors.primaryGreen,
                   ),
                 ),
               ),
@@ -141,6 +190,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 style: TextStyle(
                   fontSize: 30,
                   fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
                 ),
               ),
 
@@ -148,7 +198,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
               const Text(
                 "Sign up to start detecting durian variety",
-                style: TextStyle(color: Colors.black54),
+                style: TextStyle(color: AppColors.textSecondary),
               ),
 
               const SizedBox(height: 28),
@@ -177,7 +227,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 suffix: IconButton(
                   icon: Icon(
                     hidePassword ? Icons.visibility_off : Icons.visibility,
-                    color: Colors.grey,
+                    color: AppColors.textMuted,
                   ),
                   onPressed: () {
                     setState(() => hidePassword = !hidePassword);
@@ -193,7 +243,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 child: ElevatedButton(
                   onPressed: loading ? null : signUp,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green.shade700,
+                    backgroundColor: AppColors.primaryGreen,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(18),
                     ),
@@ -201,12 +251,39 @@ class _SignUpPageState extends State<SignUpPage> {
                   child: loading
                       ? const CircularProgressIndicator(color: Colors.white)
                       : const Text(
-                    "Sign Up",
+                          "Sign Up",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Google Sign-Up
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: OutlinedButton.icon(
+                  onPressed: loading ? null : _googleSignUp,
+                  icon: const Text(
+                    'G',
                     style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 17,
+                      color: Colors.redAccent,
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
+                  ),
+                  label: const Text(
+                    'Sign up with Google',
+                    style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppColors.divider),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                   ),
                 ),
               ),
@@ -216,7 +293,10 @@ class _SignUpPageState extends State<SignUpPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Already have an account? "),
+                  const Text(
+                    "Already have an account? ",
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
                   GestureDetector(
                     onTap: () {
                       Navigator.pushReplacement(
@@ -227,7 +307,7 @@ class _SignUpPageState extends State<SignUpPage> {
                     child: const Text(
                       "Login",
                       style: TextStyle(
-                        color: Colors.green,
+                        color: AppColors.primaryGreen,
                         fontWeight: FontWeight.bold,
                       ),
                     ),

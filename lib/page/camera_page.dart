@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
@@ -10,13 +9,15 @@ import '../models/journal_entry.dart';
 import '../services/durian_client.dart';
 import '../services/journal_service.dart';
 import '../services/location_service.dart';
-import '../services/report_service.dart';
 import '../services/weather_service.dart';
+import '../theme/app_theme.dart';
+import 'detect_page.dart';
 import 'history_page.dart';
 import 'library_page.dart';
 import 'map_page.dart';
-import 'settings_menu_page.dart';
+import 'settings_page.dart';
 import 'top_videos_page.dart';
+import 'about_page.dart';
 
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
@@ -26,15 +27,11 @@ class CameraPage extends StatefulWidget {
 }
 
 class _CameraPageState extends State<CameraPage> {
-  File? _image;
-  String _resultText = 'Take a photo to identify your durian';
   bool _isScanning = false;
-  String? _lastLabel;
-  File? _lastSavedFile;
+  JournalEntry? _lastScan;
 
   final DurianClient _client = DurianClient();
   final JournalService _journalService = JournalService();
-  final ReportService _reportService = ReportService();
   final WeatherService _weatherService = WeatherService();
   final LocationService _locationService = LocationService();
 
@@ -44,6 +41,16 @@ class _CameraPageState extends State<CameraPage> {
   void initState() {
     super.initState();
     _loadLocationAndWeather();
+    _loadLastScan();
+  }
+
+  void _loadLastScan() {
+    final entries = _journalService.getAllEntries();
+    if (entries.isNotEmpty) {
+      setState(() {
+        _lastScan = entries.first;
+      });
+    }
   }
 
   Future<void> _loadLocationAndWeather() async {
@@ -69,13 +76,7 @@ class _CameraPageState extends State<CameraPage> {
 
     final file = File(pickedFile.path);
 
-    setState(() {
-      _image = file;
-      _isScanning = true;
-      _resultText = 'Identifying...';
-      _lastLabel = null;
-      _lastSavedFile = null;
-    });
+    setState(() => _isScanning = true);
 
     final data = await _client.detectDurian(pickedFile);
 
@@ -86,10 +87,7 @@ class _CameraPageState extends State<CameraPage> {
       final confidence = double.tryParse(data['confidence'].toString()) ?? 0.0;
 
       final savedFile = await _copyImageToAppDocs(file);
-      _lastSavedFile = savedFile;
-      _lastLabel = label;
 
-      // Auto-save basic entry without forcing notes popup
       final entry = JournalEntry(
         id: const Uuid().v4(),
         photoPath: savedFile.path,
@@ -100,14 +98,30 @@ class _CameraPageState extends State<CameraPage> {
       await _journalService.addEntry(entry);
 
       setState(() {
-        _resultText = '$label\nConfidence: ${confidence.toStringAsFixed(2)}%';
+        _lastScan = entry;
         _isScanning = false;
       });
+
+      // Navigate to result page
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DetectPage(
+              imageFile: savedFile,
+              variety: label,
+              confidence: confidence,
+            ),
+          ),
+        );
+      }
     } else {
-      setState(() {
-        _resultText = 'Failed to reach server. Check IP and server status.';
-        _isScanning = false;
-      });
+      setState(() => _isScanning = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to reach server. Check IP and server status.')),
+        );
+      }
     }
   }
 
@@ -118,284 +132,368 @@ class _CameraPageState extends State<CameraPage> {
     return source.copy(dest.path);
   }
 
-  Future<void> _showReportDialog() async {
-    if (_lastLabel == null || _lastSavedFile == null) return;
-
-    final result = await showDialog<Map<String, String>?>(
-      context: context,
-      builder: (context) => _ReportDialog(predictedLabel: _lastLabel!),
-    );
-    if (result == null) return;
-
-    try {
-      await _reportService.submitReport(
-        predictedLabel: _lastLabel!,
-        correctedLabel: result['corrected']!,
-        comment: result['comment']!,
-        imageFile: _lastSavedFile,
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Report submitted. Thank you!')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to submit report: $e')),
-        );
-      }
-    }
-  }
-
   void _navigate(Widget page) {
     Navigator.push(context, MaterialPageRoute(builder: (_) => page));
   }
 
+  String _greeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final dateStr = DateFormat('EEEE, d MMMM yyyy').format(now);
-
     return Scaffold(
-      backgroundColor: const Color(0xffF1F8E9),
-      appBar: AppBar(
-        title: const Text('Durian Lens'),
-        backgroundColor: Colors.green.shade700,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.more_vert),
-            onPressed: () => _navigate(const SettingsMenuPage()),
+      backgroundColor: AppColors.background,
+      body: Column(
+        children: [
+          // Green Header
+          Container(
+            decoration: AppDecorations.greenHeaderDecoration,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Durian Lens',
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _greeting(),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white.withValues(alpha: 0.8),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (_weather != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.wb_sunny, color: Colors.white, size: 16),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '${_weather!.temperature.toStringAsFixed(0)}°C • ${_weather!.description}',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        const SizedBox(width: 8),
+                        PopupMenuButton<String>(
+                          icon: const Icon(Icons.more_vert, color: Colors.white),
+                          color: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          onSelected: (value) {
+                            if (value == 'settings') {
+                              _navigate(const SettingsPage());
+                            } else if (value == 'about') {
+                              _navigate(const AboutPage());
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            const PopupMenuItem(
+                              value: 'settings',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.settings, color: AppColors.primaryGreen, size: 20),
+                                  SizedBox(width: 12),
+                                  Text('Settings'),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'about',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.info_outline, color: AppColors.primaryGreen, size: 20),
+                                  SizedBox(width: 12),
+                                  Text('About'),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Body
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Camera Area
+                  Container(
+                    height: 240,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryGreen.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: AppColors.primaryGreen.withValues(alpha: 0.25),
+                        style: BorderStyle.solid,
+                      ),
+                    ),
+                    child: DashedBorderBox(
+                      child: _isScanning
+                          ? const Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                CircularProgressIndicator(color: AppColors.primaryGreen),
+                                SizedBox(height: 12),
+                                Text(
+                                  'Identifying...',
+                                  style: TextStyle(color: AppColors.primaryGreen, fontWeight: FontWeight.w500),
+                                ),
+                              ],
+                            )
+                          : InkWell(
+                              onTap: () => _pickAndDetect(ImageSource.camera),
+                              borderRadius: BorderRadius.circular(20),
+                              child: const Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.camera_alt, size: 48, color: AppColors.primaryGreen),
+                                  SizedBox(height: 12),
+                                  Text(
+                                    'Tap to identify your durian',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      color: AppColors.primaryGreen,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Gallery Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _isScanning ? null : () => _pickAndDetect(ImageSource.gallery),
+                      icon: const Icon(Icons.photo_library, size: 18),
+                      label: const Text('Choose from Gallery'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primaryGreen,
+                        side: const BorderSide(color: AppColors.primaryGreen),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Last Scan
+                  if (_lastScan != null) ...[
+                    const Text('LAST SCAN', style: AppTextStyles.sectionTitle),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: AppDecorations.cardDecoration,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'VARIETY DETECTED',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.textMuted,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _lastScan!.variety,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: LinearProgressIndicator(
+                                          value: _lastScan!.confidence / 100,
+                                          backgroundColor: AppColors.divider,
+                                          valueColor: const AlwaysStoppedAnimation(AppColors.primaryGreen),
+                                          minHeight: 6,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      '${_lastScan!.confidence.toStringAsFixed(1)}% confidence',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryGreen.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.eco, color: AppColors.primaryGreen),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+
+                  // Explore
+                  const Text('EXPLORE', style: AppTextStyles.sectionTitle),
+                  const SizedBox(height: 12),
+                  GridView.count(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: 1.65,
+                    children: [
+                      ExploreCard(
+                        title: 'History',
+                        subtitle: 'View past scans',
+                        icon: Icons.history,
+                        iconColor: Colors.blue.shade700,
+                        onTap: () => _navigate(const HistoryPage()),
+                      ),
+                      ExploreCard(
+                        title: 'Map & Stores',
+                        subtitle: 'Find nearby stalls',
+                        icon: Icons.location_on,
+                        iconColor: Colors.red.shade400,
+                        onTap: () => _navigate(const MapPage()),
+                      ),
+                      ExploreCard(
+                        title: 'Library',
+                        subtitle: 'Durian varieties',
+                        icon: Icons.menu_book,
+                        iconColor: Colors.orange.shade700,
+                        onTap: () => _navigate(const LibraryPage()),
+                      ),
+                      ExploreCard(
+                        title: 'Top Videos',
+                        subtitle: 'Popular posts',
+                        icon: Icons.play_circle_fill,
+                        iconColor: Colors.purple.shade600,
+                        onTap: () => _navigate(const TopVideosPage()),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Date & Weather
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(dateStr, style: TextStyle(fontSize: 14, color: Colors.grey.shade700)),
-                      const SizedBox(height: 4),
-                      if (_weather != null)
-                        Row(
-                          children: [
-                            Icon(Icons.wb_sunny, color: Colors.orange.shade600, size: 20),
-                            const SizedBox(width: 6),
-                            Text(
-                              '${_weather!.temperature.toStringAsFixed(0)}°C • ${_weather!.description}',
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                            ),
-                          ],
-                        )
-                      else
-                        const SizedBox(height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // Detection Result / Image
-            Container(
-              height: 280,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 14, offset: Offset(0, 8))],
-              ),
-              child: _image != null
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(24),
-                      child: Image.file(_image!, fit: BoxFit.cover),
-                    )
-                  : const Center(child: Icon(Icons.camera_alt, size: 80, color: Colors.grey)),
-            ),
-            const SizedBox(height: 16),
-
-            // Result Text
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4))],
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    _resultText,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  if (_lastLabel != null && !_isScanning) ...[
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: _showReportDialog,
-                        icon: const Icon(Icons.report_problem_outlined, color: Colors.red, size: 18),
-                        label: const Text('Report Incorrect', style: TextStyle(color: Colors.red)),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.red),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Action Buttons
-            if (_isScanning)
-              const Center(child: CircularProgressIndicator())
-            else
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _pickAndDetect(ImageSource.camera),
-                      icon: const Icon(Icons.camera_alt),
-                      label: const Text('Take Photo'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green.shade700,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _pickAndDetect(ImageSource.gallery),
-                      icon: const Icon(Icons.photo_library),
-                      label: const Text('Gallery'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.brown.shade600,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            const SizedBox(height: 24),
-
-            // Feature Grid
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.4,
-              children: [
-                _featureCard('History', Icons.history, Colors.blue.shade700, () => _navigate(const HistoryPage())),
-                _featureCard('Map & Stores', Icons.map, Colors.green.shade700, () => _navigate(const MapPage())),
-                _featureCard('Durian Library', Icons.menu_book, Colors.orange.shade700, () => _navigate(const LibraryPage())),
-                _featureCard('Top Videos', Icons.play_circle_fill, Colors.purple.shade700, () => _navigate(const TopVideosPage())),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _featureCard(String title, IconData icon, Color color, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 32, color: color),
-            const SizedBox(height: 8),
-            Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: color)),
-          ],
-        ),
-      ),
     );
   }
 }
 
-class _ReportDialog extends StatefulWidget {
-  final String predictedLabel;
-  const _ReportDialog({required this.predictedLabel});
-
-  @override
-  State<_ReportDialog> createState() => _ReportDialogState();
-}
-
-class _ReportDialogState extends State<_ReportDialog> {
-  String _corrected = 'Black Thorn';
-  final commentCtrl = TextEditingController();
-  final List<String> _varieties = const ['Black Thorn', 'D24', 'Musang King', 'Other'];
-
-  @override
-  void dispose() {
-    commentCtrl.dispose();
-    super.dispose();
-  }
+class DashedBorderBox extends StatelessWidget {
+  final Widget child;
+  const DashedBorderBox({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Report Incorrect Prediction'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Predicted: ${widget.predictedLabel}', style: const TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            InputDecorator(
-              decoration: const InputDecoration(labelText: 'Correct Variety'),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _corrected,
-                  isExpanded: true,
-                  items: _varieties.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-                  onChanged: (v) => setState(() => _corrected = v!),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: commentCtrl,
-              decoration: const InputDecoration(labelText: 'Comment (optional)'),
-              maxLines: 2,
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        ElevatedButton(
-          onPressed: () => Navigator.pop(context, {'corrected': _corrected, 'comment': commentCtrl.text.trim()}),
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-          child: const Text('Submit'),
-        ),
-      ],
+    return CustomPaint(
+      painter: _DashedBorderPainter(),
+      child: Center(child: child),
     );
   }
+}
+
+class _DashedBorderPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = AppColors.primaryGreen.withValues(alpha: 0.3)
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+
+    const radius = 20.0;
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(8, 8, size.width - 16, size.height - 16),
+      const Radius.circular(radius),
+    );
+
+    final path = Path()..addRRect(rrect);
+    final dashPath = Path();
+    const dashWidth = 8.0;
+    const dashSpace = 6.0;
+    double distance = 0.0;
+
+    for (final metric in path.computeMetrics()) {
+      while (distance < metric.length) {
+        dashPath.addPath(
+          metric.extractPath(distance, distance + dashWidth),
+          Offset.zero,
+        );
+        distance += dashWidth + dashSpace;
+      }
+    }
+
+    canvas.drawPath(dashPath, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

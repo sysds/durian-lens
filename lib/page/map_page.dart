@@ -1,11 +1,10 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../models/store_model.dart';
 import '../services/location_service.dart';
+import '../theme/app_theme.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -33,7 +32,6 @@ class _MapPageState extends State<MapPage> {
       _position = pos;
       _nearbyStores = _locationService.getNearbyStores(pos.latitude, pos.longitude, radiusKm: 100);
     } else {
-      // Default to KL if no permission
       _nearbyStores = _locationService.getNearbyStores(3.1390, 101.6869, radiusKm: 100);
     }
     setState(() => _loading = false);
@@ -89,10 +87,10 @@ class _MapPageState extends State<MapPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffF1F8E9),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Nearby Durian Stores'),
-        backgroundColor: Colors.green.shade700,
+        backgroundColor: AppColors.primaryGreen,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -114,19 +112,20 @@ class _MapPageState extends State<MapPage> {
                   child: _nearbyStores.isEmpty
                       ? const Center(child: Text('No stores found nearby'))
                       : ListView.builder(
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.all(16),
                           itemCount: _nearbyStores.length,
                           itemBuilder: (context, index) {
                             final store = _nearbyStores[index];
-                            return Card(
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              decoration: AppDecorations.cardDecoration,
                               child: ListTile(
                                 leading: CircleAvatar(
-                                  backgroundColor: Colors.green.shade100,
-                                  child: const Icon(Icons.store, color: Colors.green),
+                                  backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.15),
+                                  child: const Icon(Icons.store, color: AppColors.primaryGreen),
                                 ),
                                 title: Text(store.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                subtitle: Text(store.address),
+                                subtitle: Text(store.address, style: const TextStyle(color: AppColors.textSecondary)),
                                 trailing: store.rating > 0
                                     ? Row(
                                         mainAxisSize: MainAxisSize.min,

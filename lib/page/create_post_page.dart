@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../services/community_service.dart';
+import '../theme/app_theme.dart';
 
 class CreatePostPage extends StatefulWidget {
   const CreatePostPage({super.key});
@@ -76,10 +77,10 @@ class _CreatePostPageState extends State<CreatePostPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffF1F8E9),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Create Post'),
-        backgroundColor: Colors.green.shade700,
+        backgroundColor: AppColors.primaryGreen,
         actions: [
           TextButton(
             onPressed: _loading ? null : _submit,
@@ -107,7 +108,18 @@ class _CreatePostPageState extends State<CreatePostPage> {
                 return ChoiceChip(
                   label: Text(cat.toUpperCase()),
                   selected: selected,
-                  selectedColor: Colors.green.shade200,
+                  selectedColor: AppColors.primaryGreen,
+                  backgroundColor: Colors.white,
+                  labelStyle: TextStyle(
+                    color: selected ? Colors.white : AppColors.textSecondary,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                    fontSize: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    side: BorderSide(color: selected ? AppColors.primaryGreen : AppColors.divider),
+                  ),
+                  showCheckmark: false,
                   onSelected: (_) => setState(() => _category = cat),
                 );
               }).toList(),
@@ -140,6 +152,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
                     right: 8,
                     child: CircleAvatar(
                       backgroundColor: Colors.black54,
+                      radius: 18,
                       child: IconButton(
                         icon: const Icon(Icons.close, color: Colors.white, size: 18),
                         onPressed: () => setState(() => _imageFile = null),
@@ -155,7 +168,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
               icon: const Icon(Icons.photo_library),
               label: const Text('Add Photo'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green.shade700,
+                backgroundColor: AppColors.primaryGreen,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),

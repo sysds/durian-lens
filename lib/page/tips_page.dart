@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/durian_tip.dart';
 import '../services/tips_service.dart';
+import '../theme/app_theme.dart';
 
 class TipsPage extends StatefulWidget {
   const TipsPage({super.key});
@@ -23,10 +24,10 @@ class _TipsPageState extends State<TipsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffF1F8E9),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Ripeness Tips & Seasons'),
-        backgroundColor: Colors.green.shade700,
+        backgroundColor: AppColors.primaryGreen,
       ),
       body: FutureBuilder<List<DurianTip>>(
         future: _tipsFuture,
@@ -55,25 +56,19 @@ class _TipsPageState extends State<TipsPage> {
   Widget _buildTipCard(DurianTip tip) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 14, offset: Offset(0, 8)),
-        ],
-      ),
+      decoration: AppDecorations.cardDecoration,
       child: ExpansionTile(
         tilePadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
         childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-        collapsedShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        collapsedShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
           tip.variety,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
         ),
         subtitle: Text(
           'Season: ${tip.season}',
-          style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.w500),
+          style: const TextStyle(color: AppColors.primaryGreen, fontWeight: FontWeight.w500),
         ),
         children: [
           _infoRow(Icons.calendar_today, 'Season', tip.season),
@@ -94,7 +89,7 @@ class _TipsPageState extends State<TipsPage> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: Colors.green.shade700),
+          Icon(icon, size: 20, color: AppColors.primaryGreen),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -102,10 +97,10 @@ class _TipsPageState extends State<TipsPage> {
               children: [
                 Text(
                   label,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w600),
+                  style: const TextStyle(fontSize: 12, color: AppColors.textMuted, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 2),
-                Text(value, style: const TextStyle(fontSize: 14)),
+                Text(value, style: const TextStyle(fontSize: 14, color: AppColors.textPrimary)),
               ],
             ),
           ),

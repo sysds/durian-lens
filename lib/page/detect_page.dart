@@ -1,392 +1,254 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:uuid/uuid.dart';
+import 'package:flutter/services.dart';
 
-import '../models/journal_entry.dart';
-import '../services/durian_client.dart';
-import '../services/journal_service.dart';
-import '../services/report_service.dart';
-import 'tips_page.dart';
+import '../models/durian_library.dart';
+import '../theme/app_theme.dart';
 
 class DetectPage extends StatefulWidget {
-  const DetectPage({super.key});
+  final File? imageFile;
+  final String? variety;
+  final double? confidence;
+
+  const DetectPage({
+    super.key,
+    this.imageFile,
+    this.variety,
+    this.confidence,
+  });
 
   @override
   State<DetectPage> createState() => _DetectPageState();
 }
 
 class _DetectPageState extends State<DetectPage> {
-  File? _image;
-  String _resultText = 'Please take or choose photo';
-  bool _isScanning = false;
-  String? _lastLabel;
-  File? _lastSavedFile;
+  DurianLibraryItem? _libraryItem;
+  bool _loading = true;
 
-  final DurianClient _client = DurianClient();
-  final JournalService _journalService = JournalService();
-  final ReportService _reportService = ReportService();
-
-  Future<void> _pickAndUploadImage(ImageSource source) async {
-    if (_isScanning) return;
-
-    final picker = ImagePicker();
-    final XFile? pickedFile = await picker.pickImage(
-      source: source,
-      imageQuality: 85,
-    );
-
-    if (pickedFile == null) return;
-
-    final file = File(pickedFile.path);
-
-    setState(() {
-      _image = file;
-      _isScanning = true;
-      _resultText = 'Verify...';
-      _lastLabel = null;
-      _lastSavedFile = null;
-    });
-
-    final data = await _client.detectDurian(pickedFile);
-
-    if (!mounted) return;
-
-    if (data != null) {
-      final label = data['label']?.toString() ?? 'Unknown';
-      final confidence = double.tryParse(data['confidence'].toString()) ?? 0.0;
-
-      final savedFile = await _copyImageToAppDocs(file);
-      _lastSavedFile = savedFile;
-      _lastLabel = label;
-
-      await _promptForNotesAndSave(
-        label: label,
-        confidence: confidence,
-        photoPath: savedFile.path,
-      );
-
-      setState(() {
-        _resultText = 'Category Durian: $label\nConfidence: ${confidence.toStringAsFixed(2)}%';
-        _isScanning = false;
-      });
-    } else {
-      setState(() {
-        _resultText = 'Gagal hubungi server. Pastikan IP betul & server aktif.';
-        _isScanning = false;
-      });
-    }
+  @override
+  void initState() {
+    super.initState();
+    _loadLibraryData();
   }
 
-  Future<File> _copyImageToAppDocs(File source) async {
-    final docsDir = await getApplicationDocumentsDirectory();
-    final fileName = 'durian_${DateTime.now().millisecondsSinceEpoch}.jpg';
-    final dest = File('${docsDir.path}/$fileName');
-    return source.copy(dest.path);
-  }
-
-  Future<void> _promptForNotesAndSave({
-    required String label,
-    required double confidence,
-    required String photoPath,
-  }) async {
-    if (!mounted) return;
-
-    final notesResult = await showDialog<Map<String, String>>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const _NotesDialog(),
-    );
-
-    final entry = JournalEntry(
-      id: const Uuid().v4(),
-      photoPath: photoPath,
-      date: DateTime.now(),
-      variety: label,
-      confidence: confidence,
-      taste: notesResult?['taste'],
-      price: notesResult?['price'],
-      seller: notesResult?['seller'],
-      notes: notesResult?['notes'],
-    );
-
-    await _journalService.addEntry(entry);
-  }
-
-  Future<void> _showReportDialog() async {
-    if (_lastLabel == null || _lastSavedFile == null) return;
-
-    final result = await showDialog<Map<String, String>?>(
-      context: context,
-      builder: (context) => _ReportDialog(predictedLabel: _lastLabel!),
-    );
-
-    if (result == null) return;
-
+  Future<void> _loadLibraryData() async {
     try {
-      await _reportService.submitReport(
-        predictedLabel: _lastLabel!,
-        correctedLabel: result['corrected']!,
-        comment: result['comment']!,
-        imageFile: _lastSavedFile,
-      );
+      final jsonString = await rootBundle.loadString('assets/durian_library.json');
+      final List<dynamic> jsonList = jsonDecode(jsonString);
+      final items = jsonList.map((e) => DurianLibraryItem.fromJson(e as Map<String, dynamic>)).toList();
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Report submitted. Thank you!')),
+      if (widget.variety != null) {
+        final query = widget.variety!.toLowerCase();
+        _libraryItem = items.firstWhere(
+          (item) =>
+              item.name.toLowerCase() == query ||
+              item.aliases.any((a) => a.toLowerCase() == query) ||
+              item.name.toLowerCase().contains(query),
+          orElse: () => items.firstWhere(
+            (item) => item.name.toLowerCase().contains('musang'),
+            orElse: () => items.first,
+          ),
         );
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to submit report: $e')),
-        );
-      }
+    } catch (_) {
+      // ignore
     }
+    setState(() => _loading = false);
+  }
+
+  bool get _hasHighConfidence {
+    final c = widget.confidence ?? 0;
+    return c >= 80;
   }
 
   @override
   Widget build(BuildContext context) {
+    final variety = widget.variety ?? 'Unknown';
+    final confidence = widget.confidence ?? 0.0;
+    final hasImage = widget.imageFile != null && widget.imageFile!.existsSync();
+
     return Scaffold(
-      backgroundColor: const Color(0xffF1F8E9),
-      appBar: AppBar(
-        title: const Text('Detection Durian'),
-        backgroundColor: Colors.green.shade700,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.lightbulb_outline),
-            tooltip: 'Tips & Seasons',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const TipsPage()),
-              );
-            },
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          children: [
-            Container(
-              height: 310,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black12, blurRadius: 14, offset: Offset(0, 8)),
-                ],
+      backgroundColor: AppColors.background,
+      body: CustomScrollView(
+        slivers: [
+          // Green header with image
+          SliverToBoxAdapter(
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppColors.primaryGreenLight, AppColors.primaryGreen],
+                ),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(28),
+                  bottomRight: Radius.circular(28),
+                ),
               ),
-              child: _image != null
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(24),
-                      child: Image.file(_image!, fit: BoxFit.cover),
-                    )
-                  : const Center(
-                      child: Icon(Icons.image_outlined, size: 100, color: Colors.grey),
-                    ),
-            ),
-            const SizedBox(height: 22),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black12, blurRadius: 12, offset: Offset(0, 6)),
-                ],
-              ),
-              child: Column(
-                children: [
-                  const Text(
-                    'Result',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.green),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    _resultText,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 16),
-                  if (_lastLabel != null && !_isScanning)
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: _showReportDialog,
-                        icon: const Icon(Icons.report_problem_outlined, color: Colors.red),
-                        label: const Text('Report Incorrect', style: TextStyle(color: Colors.red)),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.red),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        ),
+              child: SafeArea(
+                bottom: false,
+                child: Column(
+                  children: [
+                    // Top bar
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back, color: Colors.white),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                          const Spacer(),
+                        ],
                       ),
                     ),
-                  const SizedBox(height: 12),
-                  if (_isScanning)
-                    const CircularProgressIndicator()
-                  else ...[
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () => _pickAndUploadImage(ImageSource.camera),
-                        icon: const Icon(Icons.camera_alt),
-                        label: const Text('Take Photo'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green.shade700,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+
+                    // Durian Image (user requested this at top)
+                    if (hasImage)
+                      Container(
+                        margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                        height: 180,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.2),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Image.file(
+                            widget.imageFile!,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      )
+                    else
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 16),
+                        child: Icon(Icons.eco, size: 64, color: Colors.white54),
+                      ),
+
+                    // Variety name & confidence
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                      child: Text(
+                        variety,
+                        style: const TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () => _pickAndUploadImage(ImageSource.gallery),
-                        icon: const Icon(Icons.photo_library),
-                        label: const Text('Choose from Gallery'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.brown.shade600,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                      child: Text(
+                        'Identified with ${confidence.toStringAsFixed(1)}% confidence',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white.withValues(alpha: 0.85),
                         ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+
+                    // Tags
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                      child: Wrap(
+                        spacing: 8,
+                        alignment: WrapAlignment.center,
+                        children: [
+                          if (_hasHighConfidence)
+                            _tag('High confidence', Colors.green.shade300, Icons.check),
+                          if (_libraryItem != null)
+                            _tag('In season', Colors.amber.shade300, Icons.calendar_today),
+                        ],
                       ),
                     ),
                   ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NotesDialog extends StatefulWidget {
-  const _NotesDialog();
-
-  @override
-  State<_NotesDialog> createState() => _NotesDialogState();
-}
-
-class _NotesDialogState extends State<_NotesDialog> {
-  final tasteCtrl = TextEditingController();
-  final priceCtrl = TextEditingController();
-  final sellerCtrl = TextEditingController();
-  final notesCtrl = TextEditingController();
-
-  @override
-  void dispose() {
-    tasteCtrl.dispose();
-    priceCtrl.dispose();
-    sellerCtrl.dispose();
-    notesCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Add Journal Notes'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: tasteCtrl, decoration: const InputDecoration(labelText: 'Taste / Flavour')),
-            TextField(controller: priceCtrl, decoration: const InputDecoration(labelText: 'Price (RM)')),
-            TextField(controller: sellerCtrl, decoration: const InputDecoration(labelText: 'Seller / Stall')),
-            TextField(controller: notesCtrl, decoration: const InputDecoration(labelText: 'Extra Notes'), maxLines: 2),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Skip')),
-        ElevatedButton(
-          onPressed: () => Navigator.pop(context, {
-            'taste': tasteCtrl.text.trim(),
-            'price': priceCtrl.text.trim(),
-            'seller': sellerCtrl.text.trim(),
-            'notes': notesCtrl.text.trim(),
-          }),
-          child: const Text('Save'),
-        ),
-      ],
-    );
-  }
-}
-
-class _ReportDialog extends StatefulWidget {
-  final String predictedLabel;
-  const _ReportDialog({required this.predictedLabel});
-
-  @override
-  State<_ReportDialog> createState() => _ReportDialogState();
-}
-
-class _ReportDialogState extends State<_ReportDialog> {
-  String _corrected = 'Black Thorn';
-  final commentCtrl = TextEditingController();
-
-  final List<String> _varieties = const ['Black Thorn', 'D24', 'Musang King', 'Other'];
-
-  @override
-  void dispose() {
-    commentCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Report Incorrect Prediction'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Predicted: ${widget.predictedLabel}', style: const TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            InputDecorator(
-              decoration: const InputDecoration(labelText: 'Correct Variety'),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _corrected,
-                  isExpanded: true,
-                  items: _varieties.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-                  onChanged: (v) => setState(() => _corrected = v!),
                 ),
               ),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: commentCtrl,
-              decoration: const InputDecoration(labelText: 'Comment (optional)'),
-              maxLines: 2,
+          ),
+
+          // Content card
+          SliverPadding(
+            padding: const EdgeInsets.all(16),
+            sliver: SliverToBoxAdapter(
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: AppDecorations.cardDecoration,
+                child: _loading
+                    ? const Center(child: CircularProgressIndicator())
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          InfoRow(
+                            icon: Icons.restaurant,
+                            label: 'TASTE PROFILE',
+                            value: _libraryItem?.tasteProfile ?? 'Rich, bittersweet, creamy, lingering',
+                          ),
+                          InfoRow(
+                            icon: Icons.attach_money,
+                            label: 'PRICE RANGE',
+                            value: _libraryItem?.priceRange ?? 'RM 35-70 / kg',
+                          ),
+                          InfoRow(
+                            icon: Icons.calendar_today,
+                            label: 'PEAK SEASON',
+                            value: _libraryItem?.season ?? 'June – August',
+                          ),
+                          InfoRow(
+                            icon: Icons.lightbulb,
+                            label: 'RIPENESS TIP',
+                            value: _libraryItem?.ripenessTips ??
+                                'Look for a slight crack at the base and strong aroma',
+                          ),
+                        ],
+                      ),
+              ),
             ),
-          ],
-        ),
+          ),
+
+          // Bottom spacing
+          const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
+        ],
       ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        ElevatedButton(
-          onPressed: () => Navigator.pop(context, {
-            'corrected': _corrected,
-            'comment': commentCtrl.text.trim(),
-          }),
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-          child: const Text('Submit'),
-        ),
-      ],
+    );
+  }
+
+  Widget _tag(String label, Color color, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: Colors.white),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../models/notification_model.dart';
 import '../services/community_service.dart';
+import '../theme/app_theme.dart';
 
 class NotificationsPage extends StatelessWidget {
   const NotificationsPage({super.key});
@@ -12,10 +13,10 @@ class NotificationsPage extends StatelessWidget {
     final service = CommunityService();
 
     return Scaffold(
-      backgroundColor: const Color(0xffF1F8E9),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Notifications'),
-        backgroundColor: Colors.green.shade700,
+        backgroundColor: AppColors.primaryGreen,
       ),
       body: StreamBuilder<List<AppNotification>>(
         stream: service.getNotifications(),
@@ -28,7 +29,7 @@ class NotificationsPage extends StatelessWidget {
             return const Center(child: Text('No notifications yet'));
           }
           return ListView.builder(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(16),
             itemCount: notifications.length,
             itemBuilder: (context, index) {
               final n = notifications[index];
@@ -52,27 +53,28 @@ class _NotificationTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: notification.read ? Colors.white : Colors.green.shade50,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2))],
+        color: notification.read ? AppColors.cardBg : AppColors.primaryGreen.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2))],
       ),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: Colors.green.shade100,
+          backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.15),
           child: Icon(
             notification.type == 'like' ? Icons.thumb_up : Icons.comment,
-            color: Colors.green,
+            color: AppColors.primaryGreen,
+            size: 18,
           ),
         ),
-        title: Text(notification.fromUsername, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text('${notification.message}\n$timeStr'),
+        title: Text(notification.fromUsername, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        subtitle: Text('${notification.message}\n$timeStr', style: AppTextStyles.caption),
         isThreeLine: true,
         trailing: notification.read
             ? null
             : Container(
                 width: 10,
                 height: 10,
-                decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
               ),
         onTap: () {
           CommunityService().markNotificationRead(notification.id);

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../theme/app_theme.dart';
+
 class TutorialPage extends StatefulWidget {
   const TutorialPage({super.key});
 
@@ -44,7 +46,7 @@ class _TutorialPageState extends State<TutorialPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffF1F8E9),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -52,7 +54,7 @@ class _TutorialPageState extends State<TutorialPage> {
               alignment: Alignment.topRight,
               child: TextButton(
                 onPressed: _finish,
-                child: const Text('Skip', style: TextStyle(fontSize: 16)),
+                child: const Text('Skip', style: TextStyle(fontSize: 16, color: AppColors.primaryGreen)),
               ),
             ),
             Expanded(
@@ -73,7 +75,7 @@ class _TutorialPageState extends State<TutorialPage> {
                     height: 8,
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     decoration: BoxDecoration(
-                      color: _currentPage == index ? Colors.green.shade700 : Colors.grey.shade300,
+                      color: _currentPage == index ? AppColors.primaryGreen : AppColors.divider,
                       borderRadius: BorderRadius.circular(4),
                     ),
                   );
@@ -85,9 +87,11 @@ class _TutorialPageState extends State<TutorialPage> {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _currentPage == _slides.length - 1 ? _finish : () => _controller.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut),
+                  onPressed: _currentPage == _slides.length - 1
+                      ? _finish
+                      : () => _controller.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green.shade700,
+                    backgroundColor: AppColors.primaryGreen,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -111,21 +115,21 @@ class _TutorialPageState extends State<TutorialPage> {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.green.shade100,
+              color: AppColors.primaryGreen.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
-            child: Icon(slide.icon, size: 80, color: Colors.green.shade800),
+            child: Icon(slide.icon, size: 80, color: AppColors.primaryGreen),
           ),
           const SizedBox(height: 32),
           Text(
             slide.title,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
           Text(
             slide.description,
-            style: TextStyle(fontSize: 16, color: Colors.grey.shade700, height: 1.5),
+            style: const TextStyle(fontSize: 16, color: AppColors.textSecondary, height: 1.5),
             textAlign: TextAlign.center,
           ),
         ],

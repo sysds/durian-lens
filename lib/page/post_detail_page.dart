@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../models/community_comment.dart';
 import '../models/community_post.dart';
 import '../services/community_service.dart';
+import '../theme/app_theme.dart';
 
 class PostDetailPage extends StatefulWidget {
   final CommunityPost post;
@@ -16,6 +18,16 @@ class PostDetailPage extends StatefulWidget {
 class _PostDetailPageState extends State<PostDetailPage> {
   final CommunityService _service = CommunityService();
   final TextEditingController _commentCtrl = TextEditingController();
+  late int _likes;
+  late int _dislikes;
+  bool _likeLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _likes = widget.post.likes;
+    _dislikes = widget.post.dislikes;
+  }
 
   @override
   void dispose() {
@@ -31,21 +43,41 @@ class _PostDetailPageState extends State<PostDetailPage> {
     if (mounted) FocusScope.of(context).unfocus();
   }
 
+  Future<void> _handleLike(bool isLike) async {
+    if (_likeLoading) return;
+    setState(() => _likeLoading = true);
+    await _service.toggleLike(widget.post.id, isLike);
+    setState(() {
+      if (isLike) {
+        _likes++;
+      } else {
+        _dislikes++;
+      }
+      _likeLoading = false;
+    });
+  }
+
+  void _sharePost() {
+    final text = '${widget.post.username} posted on Durian Lens:\n\n${widget.post.caption}';
+    Share.share(text, subject: 'Durian Lens Community Post');
+  }
+
   @override
   Widget build(BuildContext context) {
     final timeStr = DateFormat('d MMM yyyy, HH:mm').format(widget.post.timestamp);
+    final initials = widget.post.username.isNotEmpty ? widget.post.username[0].toUpperCase() : '?';
 
     return Scaffold(
-      backgroundColor: const Color(0xffF1F8E9),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Post'),
-        backgroundColor: Colors.green.shade700,
+        backgroundColor: AppColors.primaryGreen,
       ),
       body: Column(
         children: [
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -53,25 +85,34 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   Row(
                     children: [
                       CircleAvatar(
-                        backgroundColor: Colors.green.shade100,
+                        radius: 20,
+                        backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.15),
                         backgroundImage: widget.post.userPhotoUrl != null ? NetworkImage(widget.post.userPhotoUrl!) : null,
-                        child: widget.post.userPhotoUrl == null ? const Icon(Icons.person, color: Colors.green) : null,
+                        child: widget.post.userPhotoUrl == null
+                            ? Text(
+                                initials,
+                                style: const TextStyle(
+                                  color: AppColors.primaryGreen,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              )
+                            : null,
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(widget.post.username, style: const TextStyle(fontWeight: FontWeight.bold)),
-                            Text(timeStr, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                            Text(timeStr, style: AppTextStyles.caption),
                           ],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  Text(widget.post.caption, style: const TextStyle(fontSize: 16)),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
+                  Text(widget.post.caption, style: const TextStyle(fontSize: 16, height: 1.4)),
+                  const SizedBox(height: 16),
 
                   if (widget.post.imageUrl != null)
                     ClipRRect(
@@ -82,26 +123,26 @@ class _PostDetailPageState extends State<PostDetailPage> {
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => Container(
                           height: 200,
-                          color: Colors.grey.shade300,
+                          color: AppColors.divider,
                           child: const Center(child: Icon(Icons.broken_image)),
                         ),
                       ),
                     ),
 
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   Row(
                     children: [
-                      _actionButton(Icons.thumb_up_outlined, '${widget.post.likes}', () => _service.toggleLike(widget.post.id, true)),
+                      _actionButton(Icons.thumb_up_outlined, '$_likes', () => _handleLike(true)),
                       const SizedBox(width: 16),
-                      _actionButton(Icons.thumb_down_outlined, '${widget.post.dislikes}', () => _service.toggleLike(widget.post.id, false)),
+                      _actionButton(Icons.thumb_down_outlined, '$_dislikes', () => _handleLike(false)),
                       const SizedBox(width: 16),
-                      _actionButton(Icons.share_outlined, 'Share', () {}),
+                      _actionButton(Icons.share_outlined, 'Share', _sharePost),
                     ],
                   ),
                   const Divider(height: 32),
 
                   // Comments
-                  const Text('Comments', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const Text('Comments', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                   const SizedBox(height: 8),
                   StreamBuilder<List<CommunityComment>>(
                     stream: _service.getComments(widget.post.id),
@@ -139,7 +180,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
             padding: const EdgeInsets.all(12),
             decoration: const BoxDecoration(
               color: Colors.white,
-              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, -2))],
+              boxShadow: [BoxShadow(color: Color(0x14000000), blurRadius: 8, offset: Offset(0, -2))],
             ),
             child: SafeArea(
               child: Row(
@@ -150,7 +191,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                       decoration: InputDecoration(
                         hintText: 'Write a comment...',
                         filled: true,
-                        fillColor: Colors.grey.shade100,
+                        fillColor: AppColors.background,
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       ),
@@ -158,7 +199,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   ),
                   const SizedBox(width: 8),
                   CircleAvatar(
-                    backgroundColor: Colors.green.shade700,
+                    backgroundColor: AppColors.primaryGreen,
                     child: IconButton(
                       icon: const Icon(Icons.send, color: Colors.white, size: 18),
                       onPressed: _submitComment,
@@ -181,9 +222,9 @@ class _PostDetailPageState extends State<PostDetailPage> {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         child: Row(
           children: [
-            Icon(icon, size: 20, color: Colors.grey.shade700),
+            Icon(icon, size: 20, color: AppColors.textSecondary),
             const SizedBox(width: 4),
-            Text(label, style: TextStyle(color: Colors.grey.shade700)),
+            Text(label, style: const TextStyle(color: AppColors.textSecondary)),
           ],
         ),
       ),
@@ -198,14 +239,18 @@ class _CommentTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final timeStr = DateFormat('d MMM, HH:mm').format(comment.timestamp);
+    final initials = comment.username.isNotEmpty ? comment.username[0].toUpperCase() : '?';
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         CircleAvatar(
           radius: 16,
-          backgroundColor: Colors.green.shade100,
-          child: const Icon(Icons.person, size: 16, color: Colors.green),
+          backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.15),
+          child: Text(
+            initials,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryGreen),
+          ),
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -216,7 +261,7 @@ class _CommentTile extends StatelessWidget {
                 children: [
                   Text(comment.username, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   const SizedBox(width: 8),
-                  Text(timeStr, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                  Text(timeStr, style: AppTextStyles.caption),
                 ],
               ),
               const SizedBox(height: 4),
@@ -224,13 +269,13 @@ class _CommentTile extends StatelessWidget {
               const SizedBox(height: 4),
               Row(
                 children: [
-                  Icon(Icons.thumb_up_outlined, size: 14, color: Colors.grey.shade600),
+                  const Icon(Icons.thumb_up_outlined, size: 14, color: AppColors.textMuted),
                   const SizedBox(width: 4),
-                  Text('${comment.likes}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  Text('${comment.likes}', style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
                   const SizedBox(width: 12),
-                  Icon(Icons.thumb_down_outlined, size: 14, color: Colors.grey.shade600),
+                  const Icon(Icons.thumb_down_outlined, size: 14, color: AppColors.textMuted),
                   const SizedBox(width: 4),
-                  Text('${comment.dislikes}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  Text('${comment.dislikes}', style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
                 ],
               ),
             ],

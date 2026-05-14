@@ -134,6 +134,19 @@ class CommunityService {
     });
   }
 
+  Stream<List<CommunityPost>> getPopularPosts({int limit = 20}) {
+    return _db
+        .collection('community_posts')
+        .orderBy('likes', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        return CommunityPost.fromFirestore(doc.id, doc.data());
+      }).toList();
+    });
+  }
+
   // Notifications
   Stream<List<AppNotification>> getNotifications() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
