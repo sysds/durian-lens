@@ -1,10 +1,8 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
-
 import '../models/journal_entry.dart';
 import '../services/durian_client.dart';
 import '../services/journal_service.dart';
@@ -16,7 +14,7 @@ import 'history_page.dart';
 import 'library_page.dart';
 import 'map_page.dart';
 import 'settings_page.dart';
-import 'top_videos_page.dart';
+import 'top_posts_page.dart';
 import 'about_page.dart';
 
 class CameraPage extends StatefulWidget {
@@ -83,8 +81,13 @@ class _CameraPageState extends State<CameraPage> {
     if (!mounted) return;
 
     if (data != null) {
-      final label = data['label']?.toString() ?? 'Unknown';
-      final confidence = double.tryParse(data['confidence'].toString()) ?? 0.0;
+      String label = data['label']?.toString() ?? 'Unknown';
+      double confidence = double.tryParse(data['confidence'].toString()) ?? 0.0;
+
+      // Threshold logic: If confidence is too low, it's likely not a recognized durian
+      if (confidence < 60.0) {
+        label = 'Unrelated Image';
+      }
 
       final savedFile = await _copyImageToAppDocs(file);
 
@@ -111,6 +114,7 @@ class _CameraPageState extends State<CameraPage> {
               imageFile: savedFile,
               variety: label,
               confidence: confidence,
+              entryId: entry.id,
             ),
           ),
         );
@@ -325,88 +329,108 @@ class _CameraPageState extends State<CameraPage> {
                   // Last Scan
                   if (_lastScan != null) ...[
                     const Text('LAST SCAN', style: AppTextStyles.sectionTitle),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     Container(
-                      padding: const EdgeInsets.all(16),
                       decoration: AppDecorations.cardDecoration,
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'VARIETY DETECTED',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: AppColors.textMuted,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  _lastScan!.variety,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Row(
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => DetectPage(
+                                imageFile: File(_lastScan!.photoPath),
+                                variety: _lastScan!.variety,
+                                confidence: _lastScan!.confidence,
+                                entryId: _lastScan!.id,
+                                date: _lastScan!.date,
+                              ),
+                            ),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(20),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Expanded(
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(4),
-                                        child: LinearProgressIndicator(
-                                          value: _lastScan!.confidence / 100,
-                                          backgroundColor: AppColors.divider,
-                                          valueColor: const AlwaysStoppedAnimation(AppColors.primaryGreen),
-                                          minHeight: 6,
-                                        ),
+                                    const Text(
+                                      'VARIETY DETECTED',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.textMuted,
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: 0.5,
                                       ),
                                     ),
-                                    const SizedBox(width: 10),
+                                    const SizedBox(height: 4),
                                     Text(
-                                      '${_lastScan!.confidence.toStringAsFixed(1)}% confidence',
+                                      _lastScan!.variety,
                                       style: const TextStyle(
-                                        fontSize: 12,
-                                        color: AppColors.textSecondary,
-                                        fontWeight: FontWeight.w500,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.textPrimary,
                                       ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(4),
+                                            child: LinearProgressIndicator(
+                                              value: _lastScan!.confidence / 100,
+                                              backgroundColor: AppColors.divider,
+                                              valueColor: const AlwaysStoppedAnimation(AppColors.primaryGreen),
+                                              minHeight: 6,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Text(
+                                          '${_lastScan!.confidence.toStringAsFixed(1)}% confidence',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: AppColors.textSecondary,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
-                              ],
-                            ),
+                              ),
+                              const SizedBox(width: 12),
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryGreen.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(Icons.eco, color: AppColors.primaryGreen),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 12),
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryGreen.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(Icons.eco, color: AppColors.primaryGreen),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
                   ],
 
                   // Explore
                   const Text('EXPLORE', style: AppTextStyles.sectionTitle),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   GridView.count(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
+                    padding: EdgeInsets.zero,
                     crossAxisCount: 2,
                     mainAxisSpacing: 12,
                     crossAxisSpacing: 12,
-                    childAspectRatio: 1.65,
+                    childAspectRatio: 1.1,
                     children: [
                       ExploreCard(
                         title: 'History',
@@ -430,11 +454,11 @@ class _CameraPageState extends State<CameraPage> {
                         onTap: () => _navigate(const LibraryPage()),
                       ),
                       ExploreCard(
-                        title: 'Top Videos',
-                        subtitle: 'Popular posts',
-                        icon: Icons.play_circle_fill,
+                        title: 'Top Posts',
+                        subtitle: 'Most popular',
+                        icon: Icons.trending_up,
                         iconColor: Colors.purple.shade600,
-                        onTap: () => _navigate(const TopVideosPage()),
+                        onTap: () => _navigate(const TopPostsPage()),
                       ),
                     ],
                   ),

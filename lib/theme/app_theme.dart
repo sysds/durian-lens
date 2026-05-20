@@ -102,7 +102,7 @@ class GreenHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: height,
+      constraints: BoxConstraints(minHeight: height),
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
       decoration: AppDecorations.greenHeaderDecoration,
       child: SafeArea(
@@ -280,10 +280,10 @@ class ExploreCard extends StatelessWidget {
               ),
               child: Icon(icon, size: 20, color: iconColor),
             ),
-            const Spacer(),
-            Text(title, style: AppTextStyles.cardTitle),
-            const SizedBox(height: 2),
-            Text(subtitle, style: AppTextStyles.caption),
+            const SizedBox(height: 8),
+            Text(title, style: AppTextStyles.cardTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 4),
+            Text(subtitle, style: AppTextStyles.caption, maxLines: 1, overflow: TextOverflow.ellipsis),
           ],
         ),
       ),

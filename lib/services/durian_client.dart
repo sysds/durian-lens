@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
 class DurianClient {
-  static const String serverUrl = "http://192.168.0.147:8000/predict";
+  static const String serverUrl = "http://10.20.139.240:8000/predict";
 
   Future<Map<String, dynamic>?> detectDurian(XFile image) async {
     try {

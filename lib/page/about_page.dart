@@ -58,13 +58,13 @@ class AboutPage extends StatelessWidget {
                   ListTile(
                     leading: Icon(Icons.code, color: AppColors.primaryGreen),
                     title: Text('Developed by'),
-                    subtitle: Text('Durian Lens Team'),
+                    subtitle: Text('SITI NUR SYUHADAH BT MOHD ZAYADI'),
                   ),
                   Divider(height: 1),
                   ListTile(
                     leading: Icon(Icons.email, color: AppColors.primaryGreen),
                     title: Text('Contact'),
-                    subtitle: Text('support@durianlens.app'),
+                    subtitle: Text('2024806602@student.uitm.edu.my'),
                   ),
                 ],
               ),

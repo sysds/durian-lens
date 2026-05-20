@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -5,6 +6,7 @@ import '../models/journal_entry.dart';
 import '../services/csv_service.dart';
 import '../services/journal_service.dart';
 import '../theme/app_theme.dart';
+import 'detect_page.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -15,6 +17,7 @@ class HistoryPage extends StatefulWidget {
 
 class _HistoryPageState extends State<HistoryPage> {
   final JournalService _journalService = JournalService();
+  String _currentFilter = 'latest';
 
   void _refresh() => setState(() {});
 
@@ -122,7 +125,17 @@ class _HistoryPageState extends State<HistoryPage> {
 
   @override
   Widget build(BuildContext context) {
-    final entries = _journalService.getAllEntries();
+    List<JournalEntry> entries = _journalService.getAllEntries();
+
+    // Apply sorting/filtering logic
+    if (_currentFilter == 'oldest') {
+      // Reverse the default descending sort (newest first) from service
+      entries.sort((a, b) => a.date.compareTo(b.date));
+    } else if (_currentFilter != 'latest') {
+      // Filter by variety and keep descending sort
+      final query = _currentFilter.replaceAll('_', ' ').toLowerCase();
+      entries = entries.where((e) => e.variety.toLowerCase().contains(query)).toList();
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -131,11 +144,34 @@ class _HistoryPageState extends State<HistoryPage> {
           // Green Header
           GreenHeader(
             title: 'Detection History',
-            height: 100,
+            height: 90,
             actions: [
-              IconButton(
+              PopupMenuButton<String>(
                 icon: const Icon(Icons.filter_list, color: Colors.white),
-                onPressed: () {},
+                onSelected: (value) => setState(() => _currentFilter = value),
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'latest',
+                    child: Text('Sort: Latest First'),
+                  ),
+                  const PopupMenuItem(
+                    value: 'oldest',
+                    child: Text('Sort: Oldest First'),
+                  ),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(
+                    value: 'black_thorn',
+                    child: Text('Filter: Black Thorn'),
+                  ),
+                  const PopupMenuItem(
+                    value: 'd24',
+                    child: Text('Filter: D24'),
+                  ),
+                  const PopupMenuItem(
+                    value: 'musang_king',
+                    child: Text('Filter: Musang King'),
+                  ),
+                ],
               ),
               IconButton(
                 icon: const Icon(Icons.download, color: Colors.white),
@@ -170,85 +206,125 @@ class _HistoryPageState extends State<HistoryPage> {
   Widget _buildEntryCard(JournalEntry item) {
     final banner = _bannerColor(item.variety);
     final dateStr = DateFormat('d MMM yyyy, HH:mm').format(item.date);
+    final hasImage = File(item.photoPath).existsSync();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: AppDecorations.cardDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Colored banner
-          Container(
-            height: 110,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: banner,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => DetectPage(
+                imageFile: File(item.photoPath),
+                variety: item.variety,
+                confidence: item.confidence,
+                entryId: item.id,
+                date: item.date,
+              ),
             ),
-            child: Stack(
-              children: [
-                // Leaf icon background
-                Positioned(
-                  right: 20,
-                  top: 20,
-                  child: Icon(
-                    Icons.eco,
-                    size: 60,
-                    color: Colors.white.withValues(alpha: 0.2),
-                  ),
-                ),
-                // Variety chip
-                Positioned(
-                  left: 16,
-                  bottom: 16,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(20),
+          );
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Colored banner or Image
+            Container(
+              height: 110,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: hasImage ? Colors.grey.shade200 : banner,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Stack(
+                children: [
+                  if (hasImage)
+                    Positioned.fill(
+                      child: ClipRRect(
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                        child: Image.file(
+                          File(item.photoPath),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
                     ),
-                    child: Text(
-                      item.variety,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
+                  if (hasImage)
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Colors.transparent, Colors.black.withValues(alpha: 0.4)],
+                          ),
+                        ),
+                      ),
+                    ),
+                  // Leaf icon background
+                  if (!hasImage)
+                    Positioned(
+                    right: 20,
+                    top: 20,
+                    child: Icon(
+                      Icons.eco,
+                      size: 60,
+                      color: Colors.white.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  // Variety chip
+                  Positioned(
+                    left: 16,
+                    bottom: 16,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        item.variety,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                // Confidence
-                Positioned(
-                  right: 16,
-                  bottom: 16,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '${item.confidence.toStringAsFixed(1)}%',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
+                  // Confidence
+                  Positioned(
+                    right: 16,
+                    bottom: 16,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '${item.confidence.toStringAsFixed(1)}%',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
 
-          // Details
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
+            // Details
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
                     const Icon(Icons.access_time, size: 14, color: AppColors.textMuted),
                     const SizedBox(width: 6),
                     Text(
@@ -273,18 +349,19 @@ class _HistoryPageState extends State<HistoryPage> {
                     ),
                   ],
                 ),
-                if (item.taste != null && item.taste!.isNotEmpty)
-                  _noteLine(Icons.restaurant, 'Taste', item.taste!),
-                if (item.price != null && item.price!.isNotEmpty)
-                  _noteLine(Icons.attach_money, 'Price', item.price!),
-                if (item.seller != null && item.seller!.isNotEmpty)
-                  _noteLine(Icons.store, 'Seller', item.seller!),
-                if (item.notes != null && item.notes!.isNotEmpty)
-                  _noteLine(Icons.notes, 'Notes', item.notes!),
-              ],
+                  if (item.taste != null && item.taste!.isNotEmpty)
+                    _noteLine(Icons.restaurant, 'Taste', item.taste!),
+                  if (item.price != null && item.price!.isNotEmpty)
+                    _noteLine(Icons.attach_money, 'Price', item.price!),
+                  if (item.seller != null && item.seller!.isNotEmpty)
+                    _noteLine(Icons.store, 'Seller', item.seller!),
+                  if (item.notes != null && item.notes!.isNotEmpty)
+                    _noteLine(Icons.notes, 'Notes', item.notes!),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

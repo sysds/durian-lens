@@ -3,20 +3,26 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 
 import '../models/durian_library.dart';
+import '../services/journal_service.dart';
 import '../theme/app_theme.dart';
 
 class DetectPage extends StatefulWidget {
   final File? imageFile;
   final String? variety;
   final double? confidence;
+  final String? entryId;
+  final DateTime? date;
 
   const DetectPage({
     super.key,
     this.imageFile,
     this.variety,
     this.confidence,
+    this.entryId,
+    this.date,
   });
 
   @override
@@ -26,6 +32,27 @@ class DetectPage extends StatefulWidget {
 class _DetectPageState extends State<DetectPage> {
   DurianLibraryItem? _libraryItem;
   bool _loading = true;
+  bool _reported = false;
+
+  Future<void> _reportIncorrect() async {
+    if (widget.entryId == null || _reported) return;
+    
+    final service = JournalService();
+    final entries = service.getAllEntries();
+    final index = entries.indexWhere((e) => e.id == widget.entryId);
+    if (index == -1) return;
+
+    final entry = entries[index];
+    final updated = entry.copyWith(
+      notes: (entry.notes?.isEmpty ?? true) ? 'Reported Incorrect' : '${entry.notes}\nReported Incorrect',
+    );
+    await service.updateEntry(updated);
+    setState(() => _reported = true);
+  }
+
+  String _normalizeString(String text) {
+    return text.toLowerCase().replaceAll(' ', '').replaceAll('-', '');
+  }
 
   @override
   void initState() {
@@ -41,15 +68,24 @@ class _DetectPageState extends State<DetectPage> {
 
       if (widget.variety != null) {
         final query = widget.variety!.toLowerCase();
+
+        // Handle generic or unrelated labels explicitly
+        if (query == 'unknown' || query.contains('unrelated')) {
+          _libraryItem = null;
+          if (mounted) setState(() => _loading = false);
+          return;
+        }
+
+        final normalizedQuery = _normalizeString(query);
+
         _libraryItem = items.firstWhere(
-          (item) =>
-              item.name.toLowerCase() == query ||
-              item.aliases.any((a) => a.toLowerCase() == query) ||
-              item.name.toLowerCase().contains(query),
-          orElse: () => items.firstWhere(
-            (item) => item.name.toLowerCase().contains('musang'),
-            orElse: () => items.first,
-          ),
+          (item) {
+            final normalizedItemName = _normalizeString(item.name);
+            final normalizedAliases = item.aliases.map(_normalizeString).toList();
+            return normalizedItemName == normalizedQuery ||
+                   normalizedAliases.contains(normalizedQuery);
+          },
+          orElse: () => null as dynamic,
         );
       }
     } catch (_) {
@@ -68,6 +104,7 @@ class _DetectPageState extends State<DetectPage> {
     final variety = widget.variety ?? 'Unknown';
     final confidence = widget.confidence ?? 0.0;
     final hasImage = widget.imageFile != null && widget.imageFile!.existsSync();
+    final dateStr = widget.date != null ? DateFormat('d MMM yyyy, HH:mm').format(widget.date!) : null;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -159,6 +196,17 @@ class _DetectPageState extends State<DetectPage> {
                         textAlign: TextAlign.center,
                       ),
                     ),
+                    if (dateStr != null)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                        child: Text(
+                          'Scanned on $dateStr',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ),
 
                     // Tags
                     Padding(
@@ -185,11 +233,34 @@ class _DetectPageState extends State<DetectPage> {
             padding: const EdgeInsets.all(16),
             sliver: SliverToBoxAdapter(
               child: Container(
+                width: double.infinity,
                 padding: const EdgeInsets.all(20),
                 decoration: AppDecorations.cardDecoration,
                 child: _loading
                     ? const Center(child: CircularProgressIndicator())
-                    : Column(
+                    : _libraryItem == null
+                        ? Column(
+                            children: [
+                              Icon(Icons.search_off, size: 48, color: Colors.grey.shade400),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Variety Not Recognized',
+                                style: AppTextStyles.cardTitle,
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'We couldn\'t identify a specific durian variety in this image. For better results, ensure the fruit is well-lit and the thorns or base are clearly visible.',
+                                style: AppTextStyles.body,
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Try Again'),
+                              ),
+                            ],
+                          )
+                        : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           InfoRow(
@@ -218,6 +289,25 @@ class _DetectPageState extends State<DetectPage> {
               ),
             ),
           ),
+
+          // Feedback Section
+          if (widget.entryId != null)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                child: OutlinedButton.icon(
+                  onPressed: _reported ? null : _reportIncorrect,
+                  icon: Icon(_reported ? Icons.check : Icons.report_problem_outlined, size: 18),
+                  label: Text(_reported ? 'Feedback Received' : 'Report Incorrect Detection'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _reported ? Colors.grey : Colors.red.shade400,
+                    side: BorderSide(color: _reported ? Colors.grey : Colors.red.shade400),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ),
 
           // Bottom spacing
           const SliverPadding(padding: EdgeInsets.only(bottom: 24)),

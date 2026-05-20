@@ -67,38 +67,63 @@ class CommunityService {
     return docRef.id;
   }
 
-  Future<void> toggleLike(String postId, bool isLike) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
+Future<void> toggleLike(String postId, bool isLike) async {
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+  if (uid == null) return;
 
-    final likeRef = _db.collection('community_posts').doc(postId).collection('reactions').doc(uid);
-    final postRef = _db.collection('community_posts').doc(postId);
+  final likeRef = _db
+      .collection('community_posts')
+      .doc(postId)
+      .collection('reactions')
+      .doc(uid);
+  final postRef = _db.collection('community_posts').doc(postId);
 
-    final doc = await likeRef.get();
-    if (doc.exists) {
-      final data = doc.data()!;
-      final previous = data['type'] as String;
-      if (previous == (isLike ? 'like' : 'dislike')) {
-        // remove
-        await likeRef.delete();
-        await postRef.update({
-          isLike ? 'likes' : 'dislikes': FieldValue.increment(-1),
-        });
+  await _db.runTransaction((transaction) async {
+    final likeSnapshot = await transaction.get(likeRef);
+    final postSnapshot = await transaction.get(postRef);
+    
+    if (!postSnapshot.exists) return;
+    
+    final currentLikes = (postSnapshot.data()?['likes'] as int?) ?? 0;
+    final currentDislikes = (postSnapshot.data()?['dislikes'] as int?) ?? 0;
+    
+    if (likeSnapshot.exists) {
+      final currentType = likeSnapshot.data()?['type'] as String;
+      
+      if (currentType == (isLike ? 'like' : 'dislike')) {
+        // Remove reaction
+        transaction.delete(likeRef);
+        if (isLike) {
+          transaction.update(postRef, {'likes': currentLikes - 1});
+        } else {
+          transaction.update(postRef, {'dislikes': currentDislikes - 1});
+        }
       } else {
-        // switch
-        await likeRef.update({'type': isLike ? 'like' : 'dislike'});
-        await postRef.update({
-          isLike ? 'likes' : 'dislikes': FieldValue.increment(1),
-          isLike ? 'dislikes' : 'likes': FieldValue.increment(-1),
-        });
+        // Switch reaction (e.g., from like to dislike)
+        transaction.update(likeRef, {'type': isLike ? 'like' : 'dislike'});
+        if (isLike) {
+          transaction.update(postRef, {
+            'likes': currentLikes + 1,
+            'dislikes': currentDislikes - 1,
+          });
+        } else {
+          transaction.update(postRef, {
+            'likes': currentLikes - 1,
+            'dislikes': currentDislikes + 1,
+          });
+        }
       }
     } else {
-      await likeRef.set({'type': isLike ? 'like' : 'dislike', 'userId': uid});
-      await postRef.update({
-        isLike ? 'likes' : 'dislikes': FieldValue.increment(1),
-      });
+      // First time reacting
+      transaction.set(likeRef, {'type': isLike ? 'like' : 'dislike', 'userId': uid});
+      if (isLike) {
+        transaction.update(postRef, {'likes': currentLikes + 1});
+      } else {
+        transaction.update(postRef, {'dislikes': currentDislikes + 1});
+      }
     }
-  }
+  });
+}
 
   // Comments
   Stream<List<CommunityComment>> getComments(String postId) {

@@ -25,11 +25,15 @@ class JournalService {
   }
 
   List<JournalEntry> getAllEntries() {
-    final values = _box.values.toList().reversed.toList();
-    return values.map((v) {
+    final values = _box.values.toList();
+    final entries = values.map((v) {
       final map = Map<String, dynamic>.from(v);
       return JournalEntry.fromJson(map);
     }).toList();
+
+    // Sort by date descending to ensure newest scans appear on top
+    entries.sort((a, b) => b.date.compareTo(a.date));
+    return entries;
   }
 
   Future<void> clearAll() async {
