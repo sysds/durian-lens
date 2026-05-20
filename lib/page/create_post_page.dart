@@ -37,11 +37,22 @@ class _CreatePostPageState extends State<CreatePostPage> {
 
   Future<String?> _uploadImage() async {
     if (_imageFile == null) return null;
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child('community_images/${DateTime.now().millisecondsSinceEpoch}.jpg');
-    await ref.putFile(_imageFile!);
-    return await ref.getDownloadURL();
+    try {
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('community_images/${DateTime.now().millisecondsSinceEpoch}.jpg');
+      final uploadTask = await ref.putFile(_imageFile!);
+      if (uploadTask.state == TaskState.success) {
+        return await ref.getDownloadURL();
+      }
+      return null;
+    } on FirebaseException catch (e) {
+      debugPrint('Firebase Storage error: ${e.code} - ${e.message}');
+      rethrow;
+    } catch (e) {
+      debugPrint('Image upload error: $e');
+      rethrow;
+    }
   }
 
   Future<void> _submit() async {
@@ -53,8 +64,36 @@ class _CreatePostPageState extends State<CreatePostPage> {
 
     setState(() => _loading = true);
 
+    String? imageUrl;
+    if (_imageFile != null) {
+      try {
+        imageUrl = await _uploadImage();
+      } on FirebaseException catch (e) {
+        String message;
+        if (e.code == 'object-not-found' || e.code == 'bucket-not-found') {
+          message = 'Image upload failed: Firebase Storage is not set up correctly. '
+              'Please check your Firebase Console > Storage rules and ensure the bucket exists.';
+        } else if (e.code == 'unauthorized') {
+          message = 'Image upload failed: You do not have permission. '
+              'Please check Storage rules allow authenticated uploads.';
+        } else {
+          message = 'Image upload failed (${e.code}): ${e.message}';
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message), duration: const Duration(seconds: 5)),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Image upload failed: $e'), duration: const Duration(seconds: 4)),
+          );
+        }
+      }
+    }
+
     try {
-      final imageUrl = await _uploadImage();
       await _service.createPost(
         caption: caption,
         imageUrl: imageUrl,
@@ -63,11 +102,17 @@ class _CreatePostPageState extends State<CreatePostPage> {
 
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Post published!')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(imageUrl == null && _imageFile != null
+                ? 'Post published without image due to upload error.'
+                : 'Post published!'),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error saving post: $e')));
       }
     } finally {
       if (mounted) setState(() => _loading = false);

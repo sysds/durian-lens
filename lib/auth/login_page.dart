@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -79,7 +80,19 @@ class _LoginPageState extends State<LoginPage> {
         idToken: googleAuth.idToken,
       );
 
-      await FirebaseAuth.instance.signInWithCredential(credential);
+      final userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+      final user = userCred.user;
+
+      if (user != null) {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'uid': user.uid,
+          'name': user.displayName ?? 'Durian User',
+          'email': user.email ?? '',
+          'displayName': user.displayName ?? 'Durian User',
+          'photoURL': user.photoURL,
+          'createdAt': Timestamp.now(),
+        }, SetOptions(merge: true));
+      }
 
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(

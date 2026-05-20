@@ -172,6 +172,36 @@ Future<void> toggleLike(String postId, bool isLike) async {
     });
   }
 
+  Stream<List<CommunityPost>> getTopPosts({int limit = 50}) {
+    return _db
+        .collection('community_posts')
+        .orderBy('likes', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        return CommunityPost.fromFirestore(doc.id, doc.data());
+      }).toList();
+    });
+  }
+
+  Stream<String?> getUserReaction(String postId) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return Stream.value(null);
+
+    return _db
+        .collection('community_posts')
+        .doc(postId)
+        .collection('reactions')
+        .doc(uid)
+        .snapshots()
+        .map((snapshot) {
+      if (!snapshot.exists) return null;
+      final data = snapshot.data();
+      return data?['type'] as String?;
+    });
+  }
+
   // Notifications
   Stream<List<AppNotification>> getNotifications() {
     final uid = FirebaseAuth.instance.currentUser?.uid;

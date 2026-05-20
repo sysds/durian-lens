@@ -18,16 +18,7 @@ class PostDetailPage extends StatefulWidget {
 class _PostDetailPageState extends State<PostDetailPage> {
   final CommunityService _service = CommunityService();
   final TextEditingController _commentCtrl = TextEditingController();
-  late int _likes;
-  late int _dislikes;
   bool _likeLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _likes = widget.post.likes;
-    _dislikes = widget.post.dislikes;
-  }
 
   @override
   void dispose() {
@@ -46,15 +37,11 @@ class _PostDetailPageState extends State<PostDetailPage> {
   Future<void> _handleLike(bool isLike) async {
     if (_likeLoading) return;
     setState(() => _likeLoading = true);
-    await _service.toggleLike(widget.post.id, isLike);
-    setState(() {
-      if (isLike) {
-        _likes++;
-      } else {
-        _dislikes++;
-      }
-      _likeLoading = false;
-    });
+    try {
+      await _service.toggleLike(widget.post.id, isLike);
+    } finally {
+      if (mounted) setState(() => _likeLoading = false);
+    }
   }
 
   void _sharePost() {
@@ -130,14 +117,30 @@ class _PostDetailPageState extends State<PostDetailPage> {
                     ),
 
                   const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      _actionButton(Icons.thumb_up_outlined, '$_likes', () => _handleLike(true)),
-                      const SizedBox(width: 16),
-                      _actionButton(Icons.thumb_down_outlined, '$_dislikes', () => _handleLike(false)),
-                      const SizedBox(width: 16),
-                      _actionButton(Icons.share_outlined, 'Share', _sharePost),
-                    ],
+                  StreamBuilder<String?>(
+                    stream: _service.getUserReaction(widget.post.id),
+                    builder: (context, reactionSnapshot) {
+                      final userReaction = reactionSnapshot.data;
+                      return Row(
+                        children: [
+                          _actionButton(
+                            userReaction == 'like' ? Icons.thumb_up : Icons.thumb_up_outlined,
+                            '${widget.post.likes}',
+                            () => _handleLike(true),
+                            userReaction == 'like' ? AppColors.primaryGreen : AppColors.textSecondary,
+                          ),
+                          const SizedBox(width: 16),
+                          _actionButton(
+                            userReaction == 'dislike' ? Icons.thumb_down : Icons.thumb_down_outlined,
+                            '${widget.post.dislikes}',
+                            () => _handleLike(false),
+                            userReaction == 'dislike' ? Colors.redAccent : AppColors.textSecondary,
+                          ),
+                          const SizedBox(width: 16),
+                          _actionButton(Icons.share_outlined, 'Share', _sharePost, AppColors.textSecondary),
+                        ],
+                      );
+                    },
                   ),
                   const Divider(height: 32),
 
@@ -214,7 +217,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
     );
   }
 
-  Widget _actionButton(IconData icon, String label, VoidCallback onTap) {
+  Widget _actionButton(IconData icon, String label, VoidCallback onTap, Color color) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
@@ -222,9 +225,9 @@ class _PostDetailPageState extends State<PostDetailPage> {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         child: Row(
           children: [
-            Icon(icon, size: 20, color: AppColors.textSecondary),
+            Icon(icon, size: 20, color: color),
             const SizedBox(width: 4),
-            Text(label, style: const TextStyle(color: AppColors.textSecondary)),
+            Text(label, style: TextStyle(color: color)),
           ],
         ),
       ),

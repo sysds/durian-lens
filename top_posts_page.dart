@@ -31,8 +31,10 @@ class TopPostsPage extends StatelessWidget {
           // Logic to get Top 3 based on (Likes + Comments)
           var docs = snapshot.data!.docs;
           docs.sort((a, b) {
-            int engagementA = ((a['likes'] as List).length) + (a['commentsCount'] as int);
-            int engagementB = ((b['likes'] as List).length) + (b['commentsCount'] as int);
+            var likesA = a.get('likes') as List? ?? [];
+            var likesB = b.get('likes') as List? ?? [];
+            int engagementA = likesA.length + (a.get('commentsCount') as int? ?? 0);
+            int engagementB = likesB.length + (b.get('commentsCount') as int? ?? 0);
             return engagementB.compareTo(engagementA);
           });
 
@@ -138,18 +140,20 @@ class TopPostsPage extends StatelessWidget {
   Future<void> _toggleLike(String postId, String? userId, List likes) async {
     if (userId == null) return;
     
-    DocumentReference postRef = FirebaseFirestore.instance.collection('posts').doc(postId);
-    
-    if (likes.contains(userId)) {
-      // Unlike: Remove ID from array
-      await postRef.update({
-        'likes': FieldValue.arrayRemove([userId])
-      });
-    } else {
-      // Like: Add ID to array
-      await postRef.update({
-        'likes': FieldValue.arrayUnion([userId])
-      });
+    try {
+      DocumentReference postRef = FirebaseFirestore.instance.collection('posts').doc(postId);
+      
+      if (likes.contains(userId)) {
+        await postRef.update({
+          'likes': FieldValue.arrayRemove([userId])
+        });
+      } else {
+        await postRef.update({
+          'likes': FieldValue.arrayUnion([userId])
+        });
+      }
+    } catch (e) {
+      debugPrint("Error toggling like: $e");
     }
   }
 

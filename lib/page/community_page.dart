@@ -173,6 +173,36 @@ class _CommunityPageState extends State<CommunityPage> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (snapshot.hasError) {
+                  final errorStr = snapshot.error.toString();
+                  if (errorStr.contains('failed-precondition') && _filter == 'your_posts') {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.build, size: 48, color: AppColors.textMuted),
+                            SizedBox(height: 16),
+                            Text(
+                              'Database Index Required',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.center,
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'To view your posts, you need to create a Firestore composite index.\n\n'
+                              'Go to Firebase Console > Firestore Database > Indexes, '
+                              'then create a composite index for collection "community_posts" with:\n'
+                              '- userId (Ascending)\n'
+                              '- timestamp (Descending)',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: AppColors.textSecondary, height: 1.5),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
                   return Center(child: Text('Error: ${snapshot.error}'));
                 }
                 final posts = _filterPosts(snapshot.data ?? []);
@@ -202,32 +232,16 @@ class _PostCard extends StatefulWidget {
 }
 
 class _PostCardState extends State<_PostCard> {
-  late int _likes;
-  late int _dislikes;
   bool _likeLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _likes = widget.post.likes;
-    _dislikes = widget.post.dislikes;
-  }
 
   Future<void> _handleLike(bool isLike) async {
     if (_likeLoading) return;
     setState(() => _likeLoading = true);
-
-    final service = CommunityService();
-    await service.toggleLike(widget.post.id, isLike);
-
-    setState(() {
-      if (isLike) {
-        _likes++;
-      } else {
-        _dislikes++;
-      }
-      _likeLoading = false;
-    });
+    try {
+      await CommunityService().toggleLike(widget.post.id, isLike);
+    } finally {
+      if (mounted) setState(() => _likeLoading = false);
+    }
   }
 
   void _sharePost() {
@@ -332,29 +346,43 @@ class _PostCardState extends State<_PostCard> {
                 ),
               ),
 
-            // Actions
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-              child: Row(
-                children: [
-                  InkWell(
-                    onTap: _likeLoading ? null : () => _handleLike(true),
-                    child: _actionIcon(Icons.thumb_up_outlined, '$_likes'),
+            // Actions with live reaction state
+            StreamBuilder<String?>(
+              stream: CommunityService().getUserReaction(widget.post.id),
+              builder: (context, reactionSnapshot) {
+                final userReaction = reactionSnapshot.data;
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                  child: Row(
+                    children: [
+                      InkWell(
+                        onTap: _likeLoading ? null : () => _handleLike(true),
+                        child: _actionIcon(
+                          userReaction == 'like' ? Icons.thumb_up : Icons.thumb_up_outlined,
+                          '${widget.post.likes}',
+                          userReaction == 'like' ? AppColors.primaryGreen : AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      InkWell(
+                        onTap: _likeLoading ? null : () => _handleLike(false),
+                        child: _actionIcon(
+                          userReaction == 'dislike' ? Icons.thumb_down : Icons.thumb_down_outlined,
+                          '${widget.post.dislikes}',
+                          userReaction == 'dislike' ? Colors.redAccent : AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      _actionIcon(Icons.comment_outlined, '${widget.post.commentsCount}', AppColors.textSecondary),
+                      const Spacer(),
+                      InkWell(
+                        onTap: _sharePost,
+                        child: const Icon(Icons.share_outlined, size: 18, color: AppColors.textMuted),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 16),
-                  InkWell(
-                    onTap: _likeLoading ? null : () => _handleLike(false),
-                    child: _actionIcon(Icons.thumb_down_outlined, '$_dislikes'),
-                  ),
-                  const SizedBox(width: 16),
-                  _actionIcon(Icons.comment_outlined, '${widget.post.commentsCount}'),
-                  const Spacer(),
-                  InkWell(
-                    onTap: _sharePost,
-                    child: const Icon(Icons.share_outlined, size: 18, color: AppColors.textMuted),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
           ],
         ),
@@ -383,13 +411,13 @@ class _PostCardState extends State<_PostCard> {
     );
   }
 
-  Widget _actionIcon(IconData icon, String count) {
+  Widget _actionIcon(IconData icon, String count, Color color) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 18, color: AppColors.textSecondary),
+        Icon(icon, size: 18, color: color),
         const SizedBox(width: 4),
-        Text(count, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+        Text(count, style: TextStyle(fontSize: 13, color: color)),
       ],
     );
   }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
 import '../models/community_post.dart';
@@ -73,7 +72,6 @@ class _TopPostCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final timeStr = DateFormat('d MMM').format(post.timestamp);
-    final initials = post.username.isNotEmpty ? post.username[0].toUpperCase() : '?';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -190,11 +188,11 @@ class _TopPostCard extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
               child: Row(
                 children: [
-                  Icon(Icons.thumb_up_outlined, size: 16, color: AppColors.textSecondary),
+                  const Icon(Icons.thumb_up_outlined, size: 16, color: AppColors.textSecondary),
                   const SizedBox(width: 4),
                   Text('${post.likes} likes', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                   const SizedBox(width: 16),
-                  Icon(Icons.comment_outlined, size: 16, color: AppColors.textSecondary),
+                  const Icon(Icons.comment_outlined, size: 16, color: AppColors.textSecondary),
                   const SizedBox(width: 4),
                   Text('${post.commentsCount} comments', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                 ],

@@ -16,6 +16,7 @@ class SignUpPage extends StatefulWidget {
 
 class _SignUpPageState extends State<SignUpPage> {
   final nameController = TextEditingController();
+  final usernameController = TextEditingController();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
@@ -92,6 +93,7 @@ class _SignUpPageState extends State<SignUpPage> {
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
         'uid': uid,
         'name': nameController.text.trim(),
+        'username': usernameController.text.trim().isNotEmpty ? usernameController.text.trim() : null,
         'email': emailController.text.trim(),
         'displayName': nameController.text.trim(),
         'createdAt': Timestamp.now(),
@@ -126,6 +128,7 @@ class _SignUpPageState extends State<SignUpPage> {
   @override
   void dispose() {
     nameController.dispose();
+    usernameController.dispose();
     emailController.dispose();
     passwordController.dispose();
     super.dispose();
@@ -207,6 +210,14 @@ class _SignUpPageState extends State<SignUpPage> {
                 controller: nameController,
                 hint: "Full Name",
                 icon: Icons.person,
+              ),
+
+              const SizedBox(height: 16),
+
+              inputField(
+                controller: usernameController,
+                hint: "Username (optional)",
+                icon: Icons.alternate_email,
               ),
 
               const SizedBox(height: 16),
