@@ -1,0 +1,52 @@
+{
+  "expo": {
+    "name": "Durian Lens",
+    "slug": "durian-lens",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/durian-lens-logo.jpg",
+    "scheme": "com.durianlens.app",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/durian-lens-logo.jpg",
+      "resizeMode": "contain",
+      "backgroundColor": "#2E7D32"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.durianlens.app"
+    },
+    "android": {
+      "usesCleartextTraffic": true,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/durian-lens-logo.jpg",
+        "backgroundColor": "#2E7D32"
+      },
+      "package": "com.durianlens.app"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Durian Lens to access your camera to scan durians."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Durian Lens to access your photos to upload durian images."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Durian Lens to use your location to tag scan locations."
+        }
+      ],
+      "expo-web-browser"
+    ]
+  }
+}

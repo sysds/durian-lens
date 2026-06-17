@@ -1,0 +1,160 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model users {
+  id            String    @id @default(uuid()) @db.Uuid
+  email         String    @unique
+  password_hash String
+  display_name  String?   @db.VarChar(100)
+  avatar_url    String?
+  role          String    @default("user") @db.VarChar(20)
+  is_verified   Boolean   @default(false)
+  is_active     Boolean   @default(true)
+  last_login_at DateTime? @db.Timestamptz()
+  created_at    DateTime  @default(now()) @db.Timestamptz()
+  updated_at    DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  scans        scans[]
+  user_stats   user_stats?
+  ml_feedback  ml_feedback[]
+  refresh_tokens refresh_tokens[]
+  api_keys     api_keys[]
+
+  @@index([email])
+}
+
+model refresh_tokens {
+  id          String    @id @default(uuid()) @db.Uuid
+  user_id     String    @db.Uuid
+  token_hash  String
+  device_info Json?
+  expires_at  DateTime  @db.Timestamptz()
+  revoked_at  DateTime? @db.Timestamptz()
+  created_at  DateTime  @default(now()) @db.Timestamptz()
+
+  user users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([token_hash])
+}
+
+model varieties {
+  id              String    @id @default(uuid()) @db.Uuid
+  slug            String    @unique @db.VarChar(50)
+  name            String    @db.VarChar(100)
+  scientific_name String?   @db.VarChar(150)
+  description     String?
+  origin          String?   @db.VarChar(100)
+  season          String?   @db.VarChar(100)
+  price_range     String?   @db.VarChar(50)
+  thumbnail_url   String?
+  banner_url      String?
+  is_active       Boolean   @default(true)
+  sort_order      Int       @default(0)
+  created_at      DateTime  @default(now()) @db.Timestamptz()
+  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  scans                   scans[]
+  variety_characteristics variety_characteristics[]
+}
+
+model variety_characteristics {
+  id         String  @id @default(uuid()) @db.Uuid
+  variety_id String  @db.Uuid
+  category   String  @db.VarChar(50)
+  label      String  @db.VarChar(100)
+  value      String
+  score      Int?
+  sort_order Int     @default(0)
+
+  variety varieties @relation(fields: [variety_id], references: [id], onDelete: Cascade)
+
+  @@index([variety_id])
+}
+
+model scans {
+  id                String    @id @default(uuid()) @db.Uuid
+  user_id           String?   @db.Uuid
+  session_id        String?   @db.VarChar(100)
+  image_key         String    @db.VarChar(500)
+  image_url         String?
+  image_size_bytes  Int?
+  image_width       Int?
+  image_height      Int?
+  predicted_variety String?   @db.VarChar(50)
+  variety_id        String?   @db.Uuid
+  confidence        Decimal?  @db.Decimal(5, 4)
+  probabilities     Json?
+  confidence_level  String?   @db.VarChar(20)
+  processing_ms     Int?
+  model_version     String?   @db.VarChar(50)
+  user_feedback     String?   @db.VarChar(20)
+  feedback_variety  String?   @db.VarChar(50)
+  feedback_at       DateTime? @db.Timestamptz()
+  source            String    @default("camera") @db.VarChar(20)
+  latitude          Decimal?  @db.Decimal(9, 6)
+  longitude         Decimal?  @db.Decimal(9, 6)
+  created_at        DateTime  @default(now()) @db.Timestamptz()
+
+  user        users?       @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  varieties   varieties?   @relation(fields: [variety_id], references: [id])
+  ml_feedback ml_feedback[]
+
+  @@index([user_id])
+  @@index([predicted_variety])
+  @@index([created_at(sort: Desc)])
+  @@index([session_id])
+}
+
+model user_stats {
+  user_id          String    @id @db.Uuid
+  total_scans      Int       @default(0)
+  scans_today      Int       @default(0)
+  favorite_variety String?   @db.VarChar(50)
+  accuracy_rate    Decimal?  @db.Decimal(5, 4)
+  streak_days      Int       @default(0)
+  last_scan_at     DateTime? @db.Timestamptz()
+  updated_at       DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  user users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model ml_feedback {
+  id         String   @id @default(uuid()) @db.Uuid
+  scan_id    String   @db.Uuid
+  user_id    String?  @db.Uuid
+  predicted  String   @db.VarChar(50)
+  actual     String?  @db.VarChar(50)
+  confidence Decimal? @db.Decimal(5, 4)
+  notes      String?
+  reviewed   Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  scan scans? @relation(fields: [scan_id], references: [id], onDelete: Cascade)
+  user users? @relation(fields: [user_id], references: [id], onDelete: SetNull)
+}
+
+model api_keys {
+  id          String    @id @default(uuid()) @db.Uuid
+  user_id     String    @db.Uuid
+  name        String    @db.VarChar(100)
+  key_hash    String
+  key_prefix  String    @db.VarChar(10)
+  permissions String[]  @default(["scan:read", "scan:create"])
+  rate_limit  Int       @default(1000)
+  last_used_at DateTime? @db.Timestamptz()
+  expires_at  DateTime? @db.Timestamptz()
+  is_active   Boolean   @default(true)
+  created_at  DateTime  @default(now()) @db.Timestamptz()
+
+  user users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([key_hash])
+}

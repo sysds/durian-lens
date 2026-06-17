@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ERD — Durian Lens</title>
+  <style>
+    :root {
+      --c-bg: #f8fafc;
+      --c-canvas: #ffffff;
+      --c-border: #cbd5e1;
+      --c-text-main: #0f172a;
+      --c-text-sub: #64748b;
+      --c-accent: #0f172a;
+      --font-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      --font-mono: 'SF Mono', Monaco, Consolas, monospace;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--c-bg);
+      font-family: var(--font-ui);
+      color: var(--c-text-main);
+      padding: 40px;
+    }
+
+    .diagram-canvas {
+      background: var(--c-canvas);
+      border: 2px solid var(--c-border);
+      padding: 32px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .diagram-header {
+      border-bottom: 1px solid var(--c-border);
+      padding-bottom: 16px;
+      margin-bottom: 24px;
+    }
+
+    .diagram-title { font-size: 24px; font-weight: 600; }
+    .diagram-subtitle {
+      font-size: 12px; font-weight: 500; color: var(--c-text-sub);
+      text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px;
+    }
+
+    .erd-container {
+      position: relative;
+      width: 100%;
+      height: 820px;
+      margin-top: 16px;
+    }
+
+    /* Table Box */
+    .table {
+      position: absolute;
+      background: var(--c-canvas);
+      border: 1px solid var(--c-border);
+      min-width: 200px;
+    }
+
+    .table-header {
+      background: var(--c-text-main);
+      color: var(--c-canvas);
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .table-body {
+      padding: 8px 0;
+    }
+
+    .field {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 14px;
+      font-size: 12px;
+      font-family: var(--font-mono);
+      border-bottom: 1px solid transparent;
+    }
+
+    .field:last-child { border-bottom: none; }
+
+    .field-name { color: var(--c-text-main); }
+    .field-type { color: var(--c-text-sub); font-size: 11px; margin-left: 8px; }
+
+    .badge {
+      display: inline-block;
+      font-size: 9px;
+      font-family: var(--font-mono);
+      padding: 1px 5px;
+      border: 1px solid var(--c-text-main);
+      text-transform: uppercase;
+      margin-left: 6px;
+    }
+
+    .badge--filled {
+      background: var(--c-text-main);
+      color: var(--c-canvas);
+    }
+
+    /* Relationship Lines */
+    .connectors {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none; z-index: 0;
+    }
+
+    .rel-line {
+      stroke: var(--c-border);
+      stroke-width: 1.5;
+      fill: none;
+    }
+
+    .rel-card {
+      fill: var(--c-canvas);
+      stroke: var(--c-border);
+      stroke-width: 1.5;
+    }
+
+    .rel-text {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      fill: var(--c-text-sub);
+    }
+
+    /* Cardinality markers */
+    .crow-foot { fill: var(--c-border); }
+
+    /* Legend */
+    .legend {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid var(--c-border);
+      display: flex;
+      gap: 32px;
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--c-text-sub);
+    }
+
+    .legend-box {
+      width: 24px; height: 16px;
+      border: 1px solid var(--c-border);
+      background: var(--c-canvas);
+    }
+
+    .legend-box--header {
+      background: var(--c-text-main);
+      border: 1px solid var(--c-text-main);
+    }
+
+    .legend-line {
+      width: 24px; height: 0;
+      border-top: 1.5px solid var(--c-border);
+    }
+  </style>
+</head>
+<body>
+  <div class="diagram-canvas">
+    <div class="diagram-header">
+      <h1 class="diagram-title">Entity Relationship Diagram</h1>
+      <p class="diagram-subtitle">Durian Lens Database Schema / PostgreSQL 15 + Prisma ORM</p>
+    </div>
+
+    <div class="erd-container">
+      <svg class="connectors" viewBox="0 0 1336 820" preserveAspectRatio="xMidYMid meet">
+        <!-- users -> scans (1:N) -->
+        <line x1="380" y1="200" x2="540" y2="200" class="rel-line" />
+        <text x="460" y="192" text-anchor="middle" class="rel-text">1</text>
+        <text x="460" y="214" text-anchor="middle" class="rel-text">N</text>
+
+        <!-- users -> user_stats (1:1) -->
+        <line x1="280" y1="280" x2="280" y2="400" class="rel-line" />
+        <text x="272" y="340" text-anchor="end" class="rel-text">1</text>
+        <text x="290" y="340" text-anchor="start" class="rel-text">1</text>
+
+        <!-- users -> refresh_tokens (1:N) -->
+        <line x1="180" y1="280" x2="180" y2="520" class="rel-line" />
+        <text x="172" y="400" text-anchor="end" class="rel-text">1</text>
+        <text x="190" y="400" text-anchor="start" class="rel-text">N</text>
+
+        <!-- users -> ml_feedback (1:N) -->
+        <line x1="380" y1="280" x2="900" y2="560" class="rel-line" />
+        <text x="630" y="410" text-anchor="middle" class="rel-text">1</text>
+        <text x="640" y="430" text-anchor="middle" class="rel-text">N</text>
+
+        <!-- users -> api_keys (1:N) -->
+        <line x1="380" y1="220" x2="900" y2="220" class="rel-line" />
+        <text x="640" y="212" text-anchor="middle" class="rel-text">1</text>
+        <text x="640" y="234" text-anchor="middle" class="rel-text">N</text>
+
+        <!-- varieties -> scans (1:N) -->
+        <line x1="900" y1="200" x2="740" y2="200" class="rel-line" />
+        <text x="820" y="192" text-anchor="middle" class="rel-text">1</text>
+        <text x="820" y="214" text-anchor="middle" class="rel-text">N</text>
+
+        <!-- varieties -> variety_characteristics (1:N) -->
+        <line x1="1000" y1="280" x2="1000" y2="460" class="rel-line" />
+        <text x="992" y="370" text-anchor="end" class="rel-text">1</text>
+        <text x="1010" y="370" text-anchor="start" class="rel-text">N</text>
+
+        <!-- scans -> ml_feedback (1:N) -->
+        <line x1="740" y1="280" x2="900" y2="560" class="rel-line" />
+        <text x="810" y="420" text-anchor="middle" class="rel-text">1</text>
+        <text x="820" y="440" text-anchor="middle" class="rel-text">N</text>
+      </svg>
+
+      <!-- users -->
+      <div class="table" style="left: 180px; top: 40px;">
+        <div class="table-header">users</div>
+        <div class="table-body">
+          <div class="field">
+            <span><span class="field-name">id</span><span class="field-type">uuid</span></span>
+            <span class="badge badge--filled">PK</span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">email</span><span class="field-type">string</span></span>
+            <span class="badge">UQ</span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">password_hash</span><span class="field-type">string</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">display_name</span><span class="field-type">string?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">role</span><span class="field-type">string</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">is_active</span><span class="field-type">boolean</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">last_login_at</span><span class="field-type">timestamp?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">created_at</span><span class="field-type">timestamp</span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- scans -->
+      <div class="table" style="left: 540px; top: 40px;">
+        <div class="table-header">scans</div>
+        <div class="table-body">
+          <div class="field">
+            <span><span class="field-name">id</span><span class="field-type">uuid</span></span>
+            <span class="badge badge--filled">PK</span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">user_id</span><span class="field-type">uuid?</span></span>
+            <span class="badge">FK</span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">variety_id</span><span class="field-type">uuid?</span></span>
+            <span class="badge">FK</span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">image_key</span><span class="field-type">string</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">predicted_variety</span><span class="field-type">string?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">confidence</span><span class="field-type">decimal?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">probabilities</span><span class="field-type">json?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">confidence_level</span><span class="field-type">string?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">processing_ms</span><span class="field-type">int?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">model_version</span><span class="field-type">string?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">user_feedback</span><span class="field-type">string?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">source</span><span class="field-type">string</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">latitude</span><span class="field-type">decimal?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">longitude</span><span class="field-type">decimal?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">created_at</span><span class="field-type">timestamp</span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- varieties -->
+      <div class="table" style="left: 900px; top: 40px;">
+        <div class="table-header">varieties</div>
+        <div class="table-body">
+          <div class="field">
+            <span><span class="field-name">id</span><span class="field-type">uuid</span></span>
+            <span class="badge badge--filled">PK</span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">slug</span><span class="field-type">string</span></span>
+            <span class="badge">UQ</span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">name</span><span class="field-type">string</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">scientific_name</span><span class="field-type">string?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">description</span><span class="field-type">string?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">origin</span><span class="field-type">string?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">season</span><span class="field-type">string?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">price_range</span><span class="field-type">string?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">thumbnail_url</span><span class="field-type">string?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">banner_url</span><span class="field-type">string?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">is_active</span><span class="field-type">boolean</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">sort_order</span><span class="field-type">int</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">created_at</span><span class="field-type">timestamp</span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- user_stats -->
+      <div class="table" style="left: 180px; top: 400px;">
+        <div class="table-header">user_stats</div>
+        <div class="table-body">
+          <div class="field">
+            <span><span class="field-name">user_id</span><span class="field-type">uuid</span></span>
+            <span class="badge badge--filled">PK</span>
+            <span class="badge">FK</span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">total_scans</span><span class="field-type">int</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">scans_today</span><span class="field-type">int</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">favorite_variety</span><span class="field-type">string?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">accuracy_rate</span><span class="field-type">decimal?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">streak_days</span><span class="field-type">int</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">last_scan_at</span><span class="field-type">timestamp?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">updated_at</span><span class="field-type">timestamp</span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- refresh_tokens -->
+      <div class="table" style="left: 40px; top: 520px;">
+        <div class="table-header">refresh_tokens</div>
+        <div class="table-body">
+          <div class="field">
+            <span><span class="field-name">id</span><span class="field-type">uuid</span></span>
+            <span class="badge badge--filled">PK</span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">user_id</span><span class="field-type">uuid</span></span>
+            <span class="badge">FK</span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">token_hash</span><span class="field-type">string</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">device_info</span><span class="field-type">json?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">expires_at</span><span class="field-type">timestamp</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">revoked_at</span><span class="field-type">timestamp?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">created_at</span><span class="field-type">timestamp</span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- variety_characteristics -->
+      <div class="table" style="left: 900px; top: 460px;">
+        <div class="table-header">variety_characteristics</div>
+        <div class="table-body">
+          <div class="field">
+            <span><span class="field-name">id</span><span class="field-type">uuid</span></span>
+            <span class="badge badge--filled">PK</span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">variety_id</span><span class="field-type">uuid</span></span>
+            <span class="badge">FK</span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">category</span><span class="field-type">string</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">label</span><span class="field-type">string</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">value</span><span class="field-type">string</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">score</span><span class="field-type">int?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">sort_order</span><span class="field-type">int</span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ml_feedback -->
+      <div class="table" style="left: 900px; top: 560px;">
+        <div class="table-header">ml_feedback</div>
+        <div class="table-body">
+          <div class="field">
+            <span><span class="field-name">id</span><span class="field-type">uuid</span></span>
+            <span class="badge badge--filled">PK</span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">scan_id</span><span class="field-type">uuid</span></span>
+            <span class="badge">FK</span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">user_id</span><span class="field-type">uuid?</span></span>
+            <span class="badge">FK</span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">predicted</span><span class="field-type">string</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">actual</span><span class="field-type">string?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">confidence</span><span class="field-type">decimal?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">notes</span><span class="field-type">string?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">reviewed</span><span class="field-type">boolean</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">created_at</span><span class="field-type">timestamp</span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- api_keys -->
+      <div class="table" style="left: 900px; top: 200px;">
+        <div class="table-header">api_keys</div>
+        <div class="table-body">
+          <div class="field">
+            <span><span class="field-name">id</span><span class="field-type">uuid</span></span>
+            <span class="badge badge--filled">PK</span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">user_id</span><span class="field-type">uuid</span></span>
+            <span class="badge">FK</span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">name</span><span class="field-type">string</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">key_hash</span><span class="field-type">string</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">key_prefix</span><span class="field-type">string</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">permissions</span><span class="field-type">string[]</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">rate_limit</span><span class="field-type">int</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">last_used_at</span><span class="field-type">timestamp?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">expires_at</span><span class="field-type">timestamp?</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">is_active</span><span class="field-type">boolean</span></span>
+          </div>
+          <div class="field">
+            <span><span class="field-name">created_at</span><span class="field-type">timestamp</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-box legend-box--header"></div>
+        <span>Table Name</span>
+      </div>
+      <div class="legend-item">
+        <span class="badge badge--filled" style="margin:0">PK</span>
+        <span>Primary Key</span>
+      </div>
+      <div class="legend-item">
+        <span class="badge" style="margin:0">FK</span>
+        <span>Foreign Key</span>
+      </div>
+      <div class="legend-item">
+        <span class="badge" style="margin:0">UQ</span>
+        <span>Unique Constraint</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-line"></div>
+        <span>Relationship</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
