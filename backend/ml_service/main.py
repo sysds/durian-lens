@@ -138,11 +138,7 @@ def load_model() -> tuple[nn.Module | None, bool]:
 async def lifespan(app: FastAPI):
     state.model, state.weights_loaded = load_model()
     if state.model is None:
-        # Fallback: random weights so the service stays up
-        logger.warning("⚠️  Using random-weight fallback model")
-        CLASSES[:] = ["black-thorn", "d24", "musang-king"]
-        state.model = build_model(3)
-        state.model.to(DEVICE).eval()
+        raise RuntimeError(f"Trained model checkpoint is required at {MODEL_PATH}")
     status = "trained weights" if state.weights_loaded else "RANDOM weights ⚠️"
     logger.info(f"✅ ML service ready — {status} — classes: {CLASSES}")
     yield
