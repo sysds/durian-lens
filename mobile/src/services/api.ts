@@ -13,6 +13,10 @@ async function ensureFileUri(uri: string): Promise<string> {
 }
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.0.147:3000/api/v1';
 
+if (__DEV__) {
+  console.log('Durian Lens API:', API_BASE);
+}
+
 const api = axios.create({
   baseURL: API_BASE,
   timeout: 10000,

@@ -191,7 +191,7 @@ export default function HistoryScreen({ navigation }: any) {
           <Text style={styles.errorTitle}>Connection Failed</Text>
           <Text style={styles.errorText}>
             Could not reach the backend server.{'\n'}
-            Make sure Docker is running and your phone is on the same WiFi.
+            Please check your internet connection and try again.
           </Text>
           <AnimatedPressable style={styles.retryButton} onPress={onRefresh}>
             <Text style={styles.retryButtonText}>Retry</Text>
