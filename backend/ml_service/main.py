@@ -33,6 +33,14 @@ MODEL_URL     = os.getenv(
 MODEL_VERSION = "1.0.0"
 DEVICE        = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 ENABLE_TTA    = os.getenv("ENABLE_TTA", "false").lower() == "true"
+IMAGE_SIZE    = int(os.getenv("IMAGE_SIZE", "160"))
+TORCH_THREADS = int(os.getenv("TORCH_THREADS", "1"))
+
+torch.set_num_threads(TORCH_THREADS)
+try:
+    torch.set_num_interop_threads(1)
+except RuntimeError:
+    pass
 
 # Will be set after loading the checkpoint
 CLASSES: list[str] = []
@@ -41,9 +49,9 @@ CLASSES: list[str] = []
 NORMALIZE = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 
 TTA_TRANSFORMS = [
-    T.Compose([T.Resize(256), T.CenterCrop(224),                          T.ToTensor(), NORMALIZE]),
-    T.Compose([T.Resize(256), T.RandomHorizontalFlip(p=1.0), T.CenterCrop(224), T.ToTensor(), NORMALIZE]),
-    T.Compose([T.Resize(280), T.CenterCrop(224),                          T.ToTensor(), NORMALIZE]),
+    T.Compose([T.Resize(IMAGE_SIZE + 32), T.CenterCrop(IMAGE_SIZE),                          T.ToTensor(), NORMALIZE]),
+    T.Compose([T.Resize(IMAGE_SIZE + 32), T.RandomHorizontalFlip(p=1.0), T.CenterCrop(IMAGE_SIZE), T.ToTensor(), NORMALIZE]),
+    T.Compose([T.Resize(IMAGE_SIZE + 56), T.CenterCrop(IMAGE_SIZE),                          T.ToTensor(), NORMALIZE]),
 ]
 
 # ── App state ─────────────────────────────────────────────────
@@ -203,12 +211,15 @@ def run_inference(image: Image.Image) -> tuple[str, float, dict]:
     transforms = TTA_TRANSFORMS if ENABLE_TTA else TTA_TRANSFORMS[:1]
 
     with torch.no_grad():
-        for tf in transforms:
+        for idx, tf in enumerate(transforms, start=1):
             try:
+                pass_start = time.time()
                 t = tf(image).unsqueeze(0).to(DEVICE)
+                logger.info(f"Inference pass {idx}: tensor ready {tuple(t.shape)}")
                 logits = state.model(t)
                 probs = torch.softmax(logits, dim=1).squeeze().cpu().numpy()
                 all_probs.append(probs)
+                logger.info(f"Inference pass {idx}: done in {int((time.time() - pass_start) * 1000)}ms")
             except Exception as e:
                 logger.warning(f"TTA failed: {e}")
 
