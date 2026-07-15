@@ -8,7 +8,9 @@ Keys: features.X.X.weight / classifier.X.weight
 from contextlib import asynccontextmanager
 from io import BytesIO
 from pathlib import Path
+import os
 import time, logging
+import urllib.request
 
 import torch
 import torch.nn as nn
@@ -24,6 +26,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("durian-lens-ml")
 
 MODEL_PATH    = Path("/app/models/durian_efficientnet_b4.pth")
+MODEL_URL     = os.getenv(
+    "MODEL_URL",
+    "https://media.githubusercontent.com/media/sysds/durian-lens/master/backend/ml_service/models/durian_efficientnet_b4.pth",
+)
 MODEL_VERSION = "1.0.0"
 DEVICE        = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -47,6 +53,28 @@ class AppState:
 state = AppState()
 
 
+def is_lfs_pointer(path: Path) -> bool:
+    if not path.exists() or path.stat().st_size > 1024:
+        return False
+
+    try:
+        return path.read_text(errors="ignore").startswith("version https://git-lfs.github.com/spec")
+    except Exception:
+        return False
+
+
+def ensure_model_file() -> None:
+    if MODEL_PATH.exists() and not is_lfs_pointer(MODEL_PATH):
+        return
+
+    if not MODEL_URL:
+        return
+
+    MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
+    logger.warning(f"Downloading trained model from {MODEL_URL}")
+    urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
+
+
 def build_model(num_classes: int) -> nn.Module:
     """
     Build the exact same architecture used during training:
@@ -67,6 +95,8 @@ def build_model(num_classes: int) -> nn.Module:
 
 def load_model() -> tuple[nn.Module | None, bool]:
     global CLASSES
+
+    ensure_model_file()
 
     if not MODEL_PATH.exists():
         logger.warning(f"⚠️  No checkpoint at {MODEL_PATH}")
