@@ -16,7 +16,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { COLORS } from '../theme/colors';
 import Icon from '../components/Icon';
 import { submitFeedbackThunk, AppDispatch, RootState } from '../store';
-import { formatVarietyName, getVarietyMeta } from '../utils/varietyMeta';
+import { formatVarietyName, getDetectedVarietyDetails, getVarietyMeta } from '../utils/varietyMeta';
 import { scanAPI } from '../services/api';
 import { resolveApiAssetUrl } from '../utils/url';
 import { getLocalScanImagePath } from '../utils/scanImages';
@@ -89,9 +89,19 @@ export default function ResultScreen({ navigation }: any) {
   const data = loadedScan || route.params?.scanData || currentScan;
   const scan = data?.scan;
   const result = data?.result;
-  const variety = data?.variety;
+  const rawVariety = data?.variety;
 
-  const varietySlug = result?.variety || '';
+  const varietySlug = result?.variety || rawVariety?.slug || '';
+  const fallbackVariety = getDetectedVarietyDetails(varietySlug);
+  const variety = rawVariety || fallbackVariety
+    ? {
+        ...fallbackVariety,
+        ...rawVariety,
+        characteristics: rawVariety?.characteristics?.length
+          ? rawVariety.characteristics
+          : fallbackVariety?.characteristics,
+      }
+    : undefined;
   const meta = getVarietyMeta(varietySlug);
   const confidencePercent = Math.round((result?.confidence || 0) * 100);
   const confidenceLevel = result?.confidenceLevel || 'low';
@@ -254,6 +264,20 @@ export default function ResultScreen({ navigation }: any) {
 
       {/* Info Cards */}
       <View style={styles.infoGrid}>
+        {variety?.clone ? (
+          <View style={styles.infoCard}>
+            <Icon name="info" size={28} color={COLORS.primary} />
+            <Text style={styles.infoLabel}>Clone</Text>
+            <Text style={styles.infoValue}>{variety.clone}</Text>
+          </View>
+        ) : null}
+        {variety?.registeredDate ? (
+          <View style={styles.infoCard}>
+            <Icon name="calendar" size={28} color={COLORS.primary} />
+            <Text style={styles.infoLabel}>Registered</Text>
+            <Text style={styles.infoValue}>{variety.registeredDate}</Text>
+          </View>
+        ) : null}
         {variety?.origin ? (
           <View style={styles.infoCard}>
             <Icon name="pin" size={28} color={COLORS.primary} />
