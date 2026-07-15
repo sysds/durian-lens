@@ -14,7 +14,6 @@ CREATE TABLE users (
   email           VARCHAR(255) UNIQUE NOT NULL,
   password_hash   VARCHAR(255) NOT NULL,
   display_name    VARCHAR(100),
-  avatar_url      TEXT,
   role            VARCHAR(20) NOT NULL DEFAULT 'user'
                     CHECK (role IN ('user', 'admin', 'seller', 'farmer')),
   is_verified     BOOLEAN NOT NULL DEFAULT FALSE,
@@ -25,22 +24,6 @@ CREATE TABLE users (
 );
 
 CREATE INDEX idx_users_email ON users(email);
-
--- ============================================================
--- REFRESH TOKENS
--- ============================================================
-CREATE TABLE refresh_tokens (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  token_hash      VARCHAR(255) NOT NULL,
-  device_info     JSONB,
-  expires_at      TIMESTAMPTZ NOT NULL,
-  revoked_at      TIMESTAMPTZ,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_id);
-CREATE INDEX idx_refresh_tokens_hash ON refresh_tokens(token_hash);
 
 -- ============================================================
 -- DURIAN VARIETIES
@@ -133,10 +116,6 @@ CREATE INDEX idx_scans_session ON scans(session_id);
 CREATE TABLE user_stats (
   user_id         UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   total_scans     INTEGER NOT NULL DEFAULT 0,
-  scans_today     INTEGER NOT NULL DEFAULT 0,
-  favorite_variety VARCHAR(50),
-  accuracy_rate   DECIMAL(5, 4),
-  streak_days     INTEGER NOT NULL DEFAULT 0,
   last_scan_at    TIMESTAMPTZ,
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -155,26 +134,6 @@ CREATE TABLE ml_feedback (
   reviewed        BOOLEAN NOT NULL DEFAULT FALSE,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
--- ============================================================
--- API KEYS (for B2B / seller integrations)
--- ============================================================
-CREATE TABLE api_keys (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  name            VARCHAR(100) NOT NULL,
-  key_hash        VARCHAR(255) NOT NULL,
-  key_prefix      VARCHAR(10) NOT NULL,       -- first 8 chars for display
-  permissions     TEXT[] NOT NULL DEFAULT '{"scan:read", "scan:create"}',
-  rate_limit      INTEGER NOT NULL DEFAULT 1000,  -- requests per day
-  last_used_at    TIMESTAMPTZ,
-  expires_at      TIMESTAMPTZ,
-  is_active       BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_api_keys_user ON api_keys(user_id);
-CREATE INDEX idx_api_keys_hash ON api_keys(key_hash);
 
 -- ============================================================
 -- SEED: DURIAN VARIETIES

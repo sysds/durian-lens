@@ -15,3 +15,22 @@ backend/ml_service/models/*.pth
 backend/uploads/
 backend/uploads_backup_*/
 infra/nginx/ssl/
+# ML models
+backend/ml_service/models/*.onnx
+
+# Environment files
+.env
+**/.env
+
+# Node
+node_modules/
+dist/
+
+# Expo
+.expo/
+
+# Upload files
+uploads/
+
+# Temporary files
+~$*

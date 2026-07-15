@@ -13,7 +13,6 @@ export interface User {
   email: string;
   displayName?: string;
   role: string;
-  avatarUrl?: string;
 }
 
 // ── Auth Slice ────────────────────────────────────────────────
@@ -161,8 +160,8 @@ export const performScanThunk = createAsyncThunk(
 
 export const submitFeedbackThunk = createAsyncThunk(
   'scan/feedback',
-  async ({ id, feedback, variety }: { id: string, feedback: 'correct' | 'incorrect' | 'unsure', variety?: string }) => {
-    const res = await scanAPI.submitFeedback(id, feedback, variety);
+  async ({ id, feedback, variety, notes }: { id: string, feedback: 'correct' | 'incorrect' | 'unsure', variety?: string, notes?: string }) => {
+    const res = await scanAPI.submitFeedback(id, feedback, variety, notes);
     return res.data ?? res;
   }
 );

@@ -9,6 +9,19 @@ import { logger } from '../utils/logger';
 
 const router = Router();
 
+async function ensureSupportTicketsTable() {
+  await prisma.$executeRaw`
+    CREATE TABLE IF NOT EXISTS support_tickets (
+      id TEXT PRIMARY KEY,
+      user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+      subject VARCHAR(120) NOT NULL,
+      message TEXT NOT NULL,
+      reviewed BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+}
+
 // GET /users/me
 router.get('/me', async (req: AuthRequest, res: Response) => {
   const user = await prisma.users.findUnique({
@@ -23,7 +36,6 @@ router.get('/me', async (req: AuthRequest, res: Response) => {
       id: user.id,
       email: user.email,
       displayName: user.display_name,
-      avatarUrl: user.avatar_url,
       role: user.role,
       isVerified: user.is_verified,
       stats: user.user_stats,
@@ -36,7 +48,6 @@ router.get('/me', async (req: AuthRequest, res: Response) => {
 router.patch('/me',
   [
     body('displayName').optional().isLength({ min: 1, max: 100 }).trim(),
-    body('avatarUrl').optional({ nullable: true }).isLength({ max: 500 }).trim(),
   ],
   async (req: AuthRequest, res: Response) => {
     const errors = validationResult(req);
@@ -44,12 +55,11 @@ router.patch('/me',
       return res.status(400).json({ success: false, message: 'Validation failed', details: errors.array() });
     }
 
-    const { displayName, avatarUrl } = req.body;
+    const { displayName } = req.body;
     const user = await prisma.users.update({
       where: { id: req.userId },
       data: {
         ...(displayName !== undefined ? { display_name: displayName } : {}),
-        ...(avatarUrl !== undefined ? { avatar_url: avatarUrl || null } : {}),
       },
     });
 
@@ -59,7 +69,6 @@ router.patch('/me',
         id: user.id,
         email: user.email,
         displayName: user.display_name,
-        avatarUrl: user.avatar_url,
         role: user.role,
       },
     });
@@ -79,6 +88,12 @@ router.post('/support-tickets',
     }
 
     const ticketId = `DL-${uuidv4().slice(0, 8).toUpperCase()}`;
+    await ensureSupportTicketsTable();
+    await prisma.$executeRaw`
+      INSERT INTO support_tickets (id, user_id, subject, message)
+      VALUES (${ticketId}, CAST(${req.userId} AS uuid), ${req.body.subject}, ${req.body.message})
+    `;
+
     logger.info('Support ticket submitted', {
       ticketId,
       userId: req.userId,

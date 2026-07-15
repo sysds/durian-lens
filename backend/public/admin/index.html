@@ -1,0 +1,1784 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Durian Lens Admin</title>
+  <style>
+    :root {
+      --bg: #f7f8f5;
+      --panel: #ffffff;
+      --ink: #1f2a24;
+      --muted: #68746d;
+      --line: #dde4dd;
+      --green: #2e7d32;
+      --green-soft: #e8f3e8;
+      --gold: #b48b2d;
+      --red: #b42318;
+      --red-soft: #fde8e7;
+      --shadow: 0 10px 30px rgba(31, 42, 36, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    svg { width: 18px; height: 18px; stroke-width: 1.8; flex-shrink: 0; }
+
+    .shell {
+      height: 100vh;
+      display: grid;
+      grid-template-columns: 236px minmax(0, 1fr);
+      overflow: hidden;
+    }
+
+    .sidebar {
+      background: #17251c;
+      color: white;
+      padding: 22px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+      height: 100vh;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 4px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .brand img {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      object-fit: cover;
+      background: white;
+    }
+    .logo-fallback {
+      width: 42px;
+      height: 42px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: var(--green);
+      color: white;
+      font-size: 22px;
+    }
+
+    .brand strong { display: block; font-size: 16px; }
+    .brand span { display: block; color: rgba(255,255,255,0.62); font-size: 12px; margin-top: 2px; }
+
+    .nav { display: grid; gap: 6px; }
+    .nav button {
+      border: 0;
+      color: rgba(255,255,255,0.72);
+      background: transparent;
+      padding: 11px 12px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      text-align: left;
+      width: 100%;
+    }
+    .nav-label { display: flex; align-items: center; gap: 10px; }
+
+    .nav button.active {
+      color: white;
+      background: rgba(255,255,255,0.12);
+    }
+
+    .nav-badge {
+      min-width: 20px;
+      height: 20px;
+      padding: 0 6px;
+      border-radius: 999px;
+      background: #d92d20;
+      color: white;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .admin-footer {
+      margin-top: auto;
+      padding: 14px 4px 2px;
+      border-top: 1px solid rgba(255,255,255,0.12);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .admin-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.12);
+      color: white;
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .admin-meta { min-width: 0; }
+    .admin-meta strong { display: block; font-size: 12px; }
+    .admin-meta span {
+      display: block;
+      color: rgba(255,255,255,0.62);
+      font-size: 11px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 158px;
+    }
+
+    .main {
+      min-width: 0;
+      padding: 26px;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    .topbar {
+      min-height: 54px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    .topbar h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 650;
+      letter-spacing: 0;
+    }
+
+    .topbar p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .logout {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 9px 13px;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .card, .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .card { padding: 16px; }
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .card-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: var(--green-soft);
+      color: var(--green);
+      flex-shrink: 0;
+    }
+    .card span {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .card strong {
+      display: block;
+      font-size: 26px;
+      margin-top: 8px;
+      font-weight: 650;
+    }
+    .trend {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+    .trend.up { color: var(--green); }
+    .trend.down { color: var(--red); }
+
+    /* BUG FIX 1: overview grid was 2-col which broke the 3-panel layout.
+       Use a single column stack; chart spans full width on top, then a 2-col row below. */
+    .overview-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .overview-bottom {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 16px;
+    }
+
+    .panel { overflow: hidden; }
+    .panel header {
+      padding: 15px 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .panel h2 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 650;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: middle;
+    }
+    th {
+      color: var(--muted);
+      font-weight: 600;
+      background: #fbfcfa;
+    }
+    tr:last-child td { border-bottom: 0; }
+
+    .thumb {
+      width: 46px;
+      height: 46px;
+      border-radius: 8px;
+      object-fit: cover;
+      background: var(--green-soft);
+      border: 1px solid var(--line);
+    }
+
+    .muted { color: var(--muted); }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--green-soft);
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+    .badge.warn { background: #fff6d8; color: var(--gold); }
+    .badge.bad { background: var(--red-soft); color: var(--red); }
+
+    /* BUG FIX 2: chart used linear-gradient which caused flicker during load
+       and also broke the --bar-height CSS variable approach on some browsers.
+       Use a solid colour instead and set height via inline style directly. */
+    .chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      min-height: 190px;
+      padding: 16px;
+    }
+    .bar-wrap {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .bar {
+      border-radius: 7px 7px 3px 3px;
+      background: var(--green);
+      opacity: 0.78;
+      width: 100%;
+      min-height: 6px;
+    }
+    .bar-count {
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    /* BUG FIX 3: skeleton shimmer used linear-gradient background-size animation
+       which also stutters. Replaced with a simple opacity pulse. */
+    .skeleton-row td { padding: 14px; }
+    .skeleton {
+      display: block;
+      height: 13px;
+      border-radius: 999px;
+      background: #e4e9e4;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .toolbar input, .toolbar select {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: 8px;
+      padding: 9px 10px;
+      min-height: 38px;
+    }
+    .primary {
+      border: 0;
+      background: var(--green);
+      color: white;
+      border-radius: 8px;
+      padding: 9px 12px;
+      min-height: 38px;
+    }
+    a.primary {
+      display: inline-flex;
+      align-items: center;
+      text-decoration: none;
+    }
+    .danger {
+      border: 1px solid var(--red);
+      color: var(--red);
+      background: white;
+      border-radius: 8px;
+      padding: 7px 10px;
+    }
+    .secondary {
+      border: 1px solid var(--line);
+      color: var(--ink);
+      background: white;
+      border-radius: 8px;
+      padding: 7px 10px;
+      min-height: 34px;
+    }
+    a.secondary {
+      display: inline-flex;
+      align-items: center;
+      text-decoration: none;
+    }
+    .action-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .thumb-button {
+      border: 0;
+      padding: 0;
+      background: transparent;
+      display: inline-flex;
+      border-radius: 8px;
+    }
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: grid;
+      place-items: center;
+      padding: 22px;
+      background: rgba(23, 37, 28, 0.52);
+    }
+    .modal-card {
+      width: min(860px, 100%);
+      max-height: calc(100vh - 44px);
+      overflow: auto;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+    .modal-card header {
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .modal-card h2 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 650;
+    }
+    .modal-body {
+      padding: 16px;
+      display: grid;
+      gap: 14px;
+    }
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .detail-grid div {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      min-width: 0;
+    }
+    .detail-grid span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 4px;
+    }
+    .detail-grid strong {
+      display: block;
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+    .scan-preview {
+      width: 100%;
+      max-height: 420px;
+      object-fit: contain;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--green-soft);
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .form-grid .wide { grid-column: 1 / -1; }
+    textarea {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      width: 100%;
+      min-height: 90px;
+      resize: vertical;
+    }
+    .empty-note {
+      padding: 12px 16px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .view { display: none; }
+    .view.active { display: block; }
+
+    .login {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    .login-card {
+      width: min(420px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 28px;
+      box-shadow: var(--shadow);
+    }
+    .login-card img {
+      width: 58px;
+      height: 58px;
+      border-radius: 14px;
+      object-fit: cover;
+      display: block;
+      margin-bottom: 14px;
+    }
+    .login-logo-fallback {
+      width: 58px;
+      height: 58px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: var(--green);
+      color: white;
+      font-size: 28px;
+      margin-bottom: 14px;
+    }
+    .login-card h1 {
+      margin: 0 0 6px;
+      font-size: 24px;
+      font-weight: 650;
+    }
+    .login-card p { margin: 0 0 20px; color: var(--muted); }
+    .field { display: grid; gap: 6px; margin-bottom: 14px; }
+    .field label { font-size: 13px; color: var(--muted); font-weight: 600; }
+    .field input, .field select, .field textarea {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      width: 100%;
+    }
+    .login-card .primary { width: 100%; margin-top: 4px; }
+    .error { color: var(--red); font-size: 13px; margin-top: 12px; min-height: 18px; }
+
+    @media (max-width: 900px) {
+      body { overflow: auto; }
+      .shell { grid-template-columns: 1fr; height: auto; min-height: 100vh; overflow: visible; }
+      .sidebar { position: sticky; top: 0; z-index: 2; gap: 12px; height: auto; overflow: visible; }
+      /* BUG FIX 4: mobile nav forced 4-col with text-align center, which
+         broke the flex nav-label layout. Use auto-fit instead. */
+      .nav { grid-template-columns: repeat(auto-fit, minmax(60px, 1fr)); }
+      .nav button { justify-content: center; padding: 10px 6px; }
+      .nav-label { flex-direction: column; gap: 4px; font-size: 11px; }
+      .nav-label svg { width: 20px; height: 20px; }
+      .admin-footer { display: none; }
+      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .overview-bottom { grid-template-columns: 1fr; }
+      .main { padding: 18px; }
+      .main { height: auto; overflow: visible; }
+    }
+
+    @media (max-width: 560px) {
+      .cards { grid-template-columns: 1fr; }
+      .topbar { align-items: flex-start; flex-direction: column; }
+      table { min-width: 680px; }
+      .panel { overflow-x: auto; }
+      .modal { padding: 12px; align-items: start; }
+      .detail-grid, .form-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div id="login" class="login">
+    <form class="login-card" id="loginForm">
+      <img src="/admin/logo.jpg" alt="Durian Lens" onerror="showLogoFallback(this, 'login-logo-fallback')" />
+      <div class="login-logo-fallback" hidden>🍃</div>
+      <h1>Admin Dashboard</h1>
+      <p>Sign in with an admin account to manage Durian Lens.</p>
+      <div class="field">
+        <label>Email</label>
+        <input id="email" type="email" autocomplete="email" required />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input id="password" type="password" autocomplete="current-password" required />
+      </div>
+      <button class="primary" id="loginButton" type="submit">Sign In</button>
+      <div class="error" id="loginError"></div>
+    </form>
+  </div>
+
+  <div id="app" class="shell" hidden>
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="/admin/logo.jpg" alt="" onerror="showLogoFallback(this, 'logo-fallback')" />
+        <div class="logo-fallback" hidden>🍃</div>
+        <div>
+          <strong>Durian Lens</strong>
+          <span>Admin Console</span>
+        </div>
+      </div>
+      <nav class="nav">
+        <button data-view="overview" class="active">
+          <span class="nav-label" data-icon="dashboard">Overview</span>
+        </button>
+        <button data-view="scans">
+          <span class="nav-label" data-icon="scan">Scans</span>
+        </button>
+        <button data-view="users">
+          <span class="nav-label" data-icon="users">Users</span>
+        </button>
+        <button data-view="varieties">
+          <span class="nav-label" data-icon="leaf">Varieties</span>
+        </button>
+        <button data-view="feedback">
+          <span class="nav-label" data-icon="message">Feedback</span>
+          <span class="nav-badge" id="feedbackBadge" hidden>0</span>
+        </button>
+        <button data-view="tickets">
+          <span class="nav-label" data-icon="messageCheck">Tickets</span>
+          <span class="nav-badge" id="ticketBadge" hidden>0</span>
+        </button>
+      </nav>
+      <div class="admin-footer">
+        <div class="admin-avatar" id="adminAvatar">A</div>
+        <div class="admin-meta">
+          <strong id="adminName">Admin</strong>
+          <span id="adminEmail">Not signed in</span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h1 id="pageTitle">Overview</h1>
+          <p id="pageSubtitle">Monitor users, scans, confidence, and feedback.</p>
+        </div>
+        <button class="logout" id="logoutBtn">Sign Out</button>
+      </div>
+
+      <section id="overview" class="view active">
+        <div class="error" id="dashboardError"></div>
+        <div class="cards" id="metricCards"></div>
+        <div class="overview-grid">
+          <section class="panel">
+            <header><h2>Weekly Scan Volume</h2></header>
+            <div class="chart" id="weeklyChart"></div>
+          </section>
+          <div class="overview-bottom">
+            <section class="panel">
+              <header><h2>Recent Scans</h2></header>
+              <table>
+                <thead><tr><th>User</th><th>Prediction</th><th>Confidence</th><th>Feedback</th><th>Date</th></tr></thead>
+                <tbody id="recentScans"></tbody>
+              </table>
+            </section>
+            <section class="panel">
+              <header><h2>Top Varieties</h2></header>
+              <table>
+                <thead><tr><th>Variety</th><th>Scans</th><th>Accuracy</th></tr></thead>
+                <tbody id="topVarieties"></tbody>
+              </table>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section id="scans" class="view">
+        <section class="panel">
+          <header>
+            <h2>Scan Management</h2>
+            <div class="toolbar">
+              <select id="scanVariety"><option value="">All varieties</option></select>
+              <select id="scanSource">
+                <option value="all">All sources</option>
+                <option value="camera">Camera</option>
+                <option value="gallery">Gallery</option>
+              </select>
+              <select id="scanConfidence">
+                <option value="all">All confidence</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+              <input id="scanFrom" type="date" />
+              <input id="scanTo" type="date" />
+              <select id="scanSort">
+                <option value="date_desc">New to old</option>
+                <option value="date_asc">Old to new</option>
+                <option value="confidence_desc">Highest confidence</option>
+                <option value="confidence_asc">Lowest confidence</option>
+                <option value="processing_asc">Fastest processing</option>
+                <option value="processing_desc">Slowest processing</option>
+              </select>
+              <button class="primary" id="reloadScans">Reload</button>
+            </div>
+          </header>
+          <table>
+            <thead><tr><th>Image</th><th>User</th><th>Prediction</th><th>Confidence</th><th>Source</th><th>Date</th><th></th></tr></thead>
+            <tbody id="scanRows"></tbody>
+          </table>
+        </section>
+      </section>
+
+      <section id="users" class="view">
+        <section class="panel">
+          <header>
+            <h2>User Management</h2>
+            <div class="toolbar">
+              <select id="userRole">
+                <option value="all">All roles</option>
+                <option value="user">User</option>
+                <option value="seller">Seller</option>
+                <option value="farmer">Farmer</option>
+                <option value="admin">Admin</option>
+              </select>
+              <select id="userStatus">
+                <option value="all">All status</option>
+                <option value="active">Active</option>
+                <option value="disabled">Disabled</option>
+              </select>
+              <input id="userFrom" type="date" />
+              <input id="userTo" type="date" />
+              <select id="userSort">
+                <option value="desc">New to old</option>
+                <option value="asc">Old to new</option>
+              </select>
+              <button class="primary" id="createUserBtn">Create User</button>
+              <button class="secondary" id="reloadUsers">Reload</button>
+            </div>
+          </header>
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Scans</th><th>Last Scan</th><th>Status</th><th></th></tr></thead>
+            <tbody id="userRows"></tbody>
+          </table>
+        </section>
+      </section>
+
+      <section id="varieties" class="view">
+        <section class="panel">
+          <header>
+            <h2>Variety Management</h2>
+            <div class="toolbar">
+              <select id="varietyStatus">
+                <option value="all">All status</option>
+                <option value="active">Active</option>
+                <option value="disabled">Disabled</option>
+              </select>
+              <select id="varietySort">
+                <option value="asc">Old to new</option>
+                <option value="desc">New to old</option>
+              </select>
+              <button class="primary" id="createVarietyBtn">Create Variety</button>
+              <button class="secondary" id="reloadVarieties">Reload</button>
+            </div>
+          </header>
+          <table>
+            <thead><tr><th>Name</th><th>Slug</th><th>Origin</th><th>Season</th><th>Scans</th><th>Status</th><th></th></tr></thead>
+            <tbody id="varietyRows"></tbody>
+          </table>
+        </section>
+      </section>
+
+      <section id="feedback" class="view">
+        <section class="panel">
+          <header>
+            <h2>Feedback Review</h2>
+            <div class="toolbar">
+              <select id="feedbackVariety"><option value="">All varieties</option></select>
+              <select id="feedbackStatus">
+                <option value="all">All status</option>
+                <option value="open">Open</option>
+                <option value="reviewed">Reviewed</option>
+              </select>
+              <input id="feedbackFrom" type="date" />
+              <input id="feedbackTo" type="date" />
+              <select id="feedbackSort">
+                <option value="desc">New to old</option>
+                <option value="asc">Old to new</option>
+              </select>
+              <button class="secondary" id="reloadFeedback">Reload</button>
+            </div>
+          </header>
+          <table>
+            <thead><tr><th>User</th><th>Predicted</th><th>Actual</th><th>Comment</th><th>Status</th><th>Date</th><th></th></tr></thead>
+            <tbody id="feedbackRows"></tbody>
+          </table>
+        </section>
+      </section>
+
+      <section id="tickets" class="view">
+        <section class="panel">
+          <header>
+            <h2>Client Tickets</h2>
+            <div class="toolbar">
+              <select id="ticketStatus">
+                <option value="all">All status</option>
+                <option value="open">Open</option>
+                <option value="reviewed">Reviewed</option>
+              </select>
+              <input id="ticketFrom" type="date" />
+              <input id="ticketTo" type="date" />
+              <select id="ticketSort">
+                <option value="desc">New to old</option>
+                <option value="asc">Old to new</option>
+              </select>
+              <button class="secondary" id="reloadTickets">Reload</button>
+            </div>
+          </header>
+          <table>
+            <thead><tr><th>User</th><th>Subject</th><th>Message</th><th>Status</th><th>Date</th><th></th></tr></thead>
+            <tbody id="ticketRows"></tbody>
+          </table>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal" id="modal" hidden>
+    <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <header>
+        <h2 id="modalTitle">Details</h2>
+        <button class="secondary" id="closeModal" type="button">Close</button>
+      </header>
+      <div class="modal-body" id="modalBody"></div>
+    </section>
+  </div>
+
+  <script>
+    const API = '/api/v1';
+    const state = {
+      token: localStorage.getItem('adminToken'),
+      admin: JSON.parse(localStorage.getItem('adminUser') || 'null'),
+      view: 'overview',
+      users: [],
+      varieties: [],
+      varietyOptions: [],
+      tickets: [],
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const fmtDate = (value) => value ? new Date(value).toLocaleString('en-MY', { dateStyle: 'medium', timeStyle: 'short' }) : '-';
+    const pct = (value) => value === null || value === undefined || Number.isNaN(Number(value)) ? '-' : `${Math.round(Number(value) * 100)}%`;
+    const clean = (value) => value || '-';
+    const variety = (value) => clean(String(value || '').replaceAll('-', ' ').replace(/\b\w/g, (c) => c.toUpperCase()));
+    const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+    }[char]));
+    const fmtBytes = (value) => {
+      const size = Number(value || 0);
+      if (!size) return '-';
+      if (size < 1024) return `${size} B`;
+      if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+      return `${(size / 1024 / 1024).toFixed(1)} MB`;
+    };
+
+    const icon = (name) => {
+      const icons = {
+        dashboard: '<path d="M4 4h6v8H4z"/><path d="M14 4h6v5h-6z"/><path d="M14 13h6v7h-6z"/><path d="M4 16h6v4H4z"/>',
+        scan: '<path d="M4 7V5a1 1 0 0 1 1-1h2"/><path d="M17 4h2a1 1 0 0 1 1 1v2"/><path d="M20 17v2a1 1 0 0 1-1 1h-2"/><path d="M7 20H5a1 1 0 0 1-1-1v-2"/><path d="M7 12h10"/>',
+        users: '<path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/>',
+        message: '<path d="M4 5h16v10H7l-3 3z"/>',
+        leaf: '<path d="M5 21c7-1 13-7 14-16-9 1-15 7-16 14 3-2 7-3 11-3"/>',
+        chart: '<path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 16v-5"/><path d="M12 16V8"/><path d="M16 16v-3"/>',
+        activity: '<path d="M4 12h4l2-7 4 14 2-7h4"/>',
+        messageCheck: '<path d="M4 5h16v10H8l-4 4z"/><path d="M9 10l2 2 4-4"/>',
+      };
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${icons[name] || icons.leaf}</svg>`;
+    };
+
+    // BUG FIX 5: original showLogoFallback looked for nextElementSibling but in
+    // the login form the fallback div is the next sibling of the <img>, which works,
+    // but in the sidebar the next sibling is the .logo-fallback div. The function
+    // received 'this' (the img) but there was no guard if nextElementSibling was null.
+    // Now we pass the class name explicitly so it always finds the right element.
+    function showLogoFallback(img, fallbackClass) {
+      img.style.display = 'none';
+      const fallback = img.parentElement.querySelector('.' + fallbackClass);
+      if (fallback) fallback.hidden = false;
+    }
+
+    function hydrateNavIcons() {
+      document.querySelectorAll('[data-icon]').forEach((el) => {
+        if (!el.querySelector('svg')) el.insertAdjacentHTML('afterbegin', icon(el.dataset.icon));
+      });
+    }
+
+    function updateAdminFooter() {
+      const email = state.admin?.email || 'Not signed in';
+      const name = state.admin?.displayName || state.admin?.display_name || email;
+      $('adminEmail').textContent = email;
+      // BUG FIX 6: adminName element was missing from the original HTML but
+      // referenced in JS. Added <strong id="adminName"> to the template above.
+      $('adminName').textContent = name.split(' ')[0] || 'Admin';
+      $('adminAvatar').textContent = (name || 'A').slice(0, 1).toUpperCase();
+    }
+
+    function trendText(value, noun) {
+      const num = Number(value || 0);
+      if (num === 0) return 'No change this week';
+      return `${num > 0 ? '+' : ''}${num} ${noun} this week`;
+    }
+
+    function skeletonCells(count) {
+      return Array.from({ length: count }, () => '<td><span class="skeleton"></span></td>').join('');
+    }
+
+    function setTableSkeleton(id, rows, cols) {
+      $(id).innerHTML = Array.from({ length: rows }, () => `<tr class="skeleton-row">${skeletonCells(cols)}</tr>`).join('');
+    }
+
+    async function request(path, options = {}) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+      let res;
+      const method = (options.method || 'GET').toUpperCase();
+      const separator = path.includes('?') ? '&' : '?';
+      const requestPath = method === 'GET' ? `${path}${separator}_=${Date.now()}` : path;
+      try {
+        res = await fetch(`${API}${requestPath}`, {
+          ...options,
+          signal: controller.signal,
+          cache: 'no-store',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-store, no-cache, max-age=0',
+            'Pragma': 'no-cache',
+            ...(state.token ? { Authorization: `Bearer ${state.token}` } : {}),
+            ...(options.headers || {}),
+          },
+        });
+      } catch (err) {
+        const message = err?.name === 'AbortError'
+          ? 'The backend took too long to respond. Please restart the API and try again.'
+          : 'Could not reach the backend API. Make sure the backend is running on port 3000.';
+        throw new Error(message);
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      const json = await res.json().catch(() => ({}));
+      if (res.status === 304) throw new Error('The browser returned cached admin data. Hard refresh this page and try again.');
+      if (!res.ok) {
+        const error = new Error(json.message || `Request failed (${res.status})`);
+        error.status = res.status;
+        throw error;
+      }
+      return json.data;
+    }
+
+    function showLogin(message = '') {
+      $('login').hidden = false;
+      $('app').hidden = true;
+      $('loginError').textContent = message;
+    }
+
+    function showApp() {
+      $('login').hidden = !!state.token;
+      $('app').hidden = !state.token;
+      if (state.token) loadCurrentView();
+    }
+
+    function badge(value) {
+      const label = clean(value);
+      const cls = value === 'incorrect' ? 'bad' : value === 'unsure' || value === 'medium' ? 'warn' : '';
+      return `<span class="badge ${cls}">${label}</span>`;
+    }
+
+    function queryString(params) {
+      const query = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '' && value !== 'all') query.set(key, value);
+      });
+      return query.toString();
+    }
+
+    function optionList(items, selected = '') {
+      return items.map((item) => `<option value="${esc(item.slug)}" ${selected === item.slug ? 'selected' : ''}>${esc(item.name || variety(item.slug))}</option>`).join('');
+    }
+
+    async function ensureVarietyOptions() {
+      if (!state.varietyOptions.length) {
+        const data = await request('/admin/varieties?status=all&sort=asc');
+        state.varietyOptions = data || [];
+      }
+      const options = optionList(state.varietyOptions.filter((item) => item.isActive !== false));
+      if ($('scanVariety')) {
+        const selected = $('scanVariety').value;
+        $('scanVariety').innerHTML = `<option value="">All varieties</option>${optionList(state.varietyOptions.filter((item) => item.isActive !== false), selected)}`;
+      }
+      if ($('feedbackVariety')) {
+        const selected = $('feedbackVariety').value;
+        $('feedbackVariety').innerHTML = `<option value="">All varieties</option>${optionList(state.varietyOptions.filter((item) => item.isActive !== false), selected)}`;
+      }
+    }
+
+    async function login(email, password) {
+      const data = await request('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      });
+      if (!data?.accessToken || !data?.user) {
+        throw new Error('Login response was incomplete. Please restart the backend and try again.');
+      }
+      if ((data.user.role || '').toLowerCase() !== 'admin') {
+        throw new Error(`This account is "${data.user.role}", not admin. Run: npm run admin:promote -- ${email}`);
+      }
+      state.token = data.accessToken;
+      state.admin = data.user;
+      localStorage.setItem('adminToken', state.token);
+      localStorage.setItem('adminUser', JSON.stringify(data.user));
+      updateAdminFooter();
+      $('login').hidden = true;
+      $('app').hidden = false;
+      setTimeout(loadCurrentView, 0);
+    }
+
+    async function loadOverview() {
+      $('metricCards').innerHTML = Array.from({ length: 8 }, () =>
+        '<article class="card"><div class="card-top"><span class="skeleton" style="width:80px"></span></div><strong><span class="skeleton" style="width:50px; margin-top:8px"></span></strong><span class="trend skeleton" style="width:110px; margin-top:10px"></span></article>'
+      ).join('');
+      $('weeklyChart').innerHTML = Array.from({ length: 7 }, () =>
+        '<div class="bar-wrap"><span class="skeleton bar-count" style="width:24px"></span><div class="bar skeleton" style="height:40px; border-radius:7px 7px 3px 3px;"></div><span class="skeleton" style="width:24px"></span></div>'
+      ).join('');
+      setTableSkeleton('recentScans', 4, 5);
+      setTableSkeleton('topVarieties', 4, 3);
+
+      const data = await request('/admin/overview');
+      const totals = data?.totals || {};
+      const trends = data?.trends || {};
+
+      // BUG FIX 7: unreviewedFeedback may live under feedback count or a dedicated
+      // key depending on backend version. Fall back gracefully either way.
+      const unreviewed = Number(data?.unreviewedFeedback ?? data?.totals?.unreviewedFeedback ?? 0);
+      $('feedbackBadge').hidden = unreviewed === 0;
+      $('feedbackBadge').textContent = String(unreviewed);
+      const unreviewedTickets = Number(data?.unreviewedTickets ?? 0);
+      $('ticketBadge').hidden = unreviewedTickets === 0;
+      $('ticketBadge').textContent = String(unreviewedTickets);
+
+      $('metricCards').innerHTML = [
+        ['Users',          totals.users ?? 0,                     'users',        trendText(trends.users, 'users'),       trends.users],
+        ['Total Scans',    totals.scans ?? 0,                     'scan',         trendText(trends.scans, 'scans'),       trends.scans],
+        ['Scans Today',    totals.scansToday ?? 0,                'activity',     `${trends.scansToday ?? 0} today`,      trends.scansToday],
+        ['Avg Confidence', pct(totals.averageConfidence),         'chart',        'Model signal quality',                 0],
+        ['Varieties',      totals.varieties ?? 0,                 'leaf',         'Registered library',                   0],
+        ['Feedback Items', totals.feedback ?? 0,                  'messageCheck', trendText(trends.feedback, 'items'),    trends.feedback],
+        ['Client Tickets', totals.tickets ?? 0,                   'message',      trendText(trends.tickets, 'tickets'),   trends.tickets],
+        ['Open Feedback',  unreviewed,                            'message',      'Needs admin review',                   unreviewed],
+      ].map(([label, value, iconName, trend, trendValue]) => `
+        <article class="card">
+          <div class="card-top">
+            <span>${label}</span>
+            <div class="card-icon">${icon(iconName)}</div>
+          </div>
+          <strong>${value}</strong>
+          <span class="trend ${Number(trendValue) > 0 ? 'up' : Number(trendValue) < 0 ? 'down' : ''}">${trend}</span>
+        </article>
+      `).join('');
+
+      // BUG FIX 8: bar height was set via CSS custom property --bar-height but
+      // that required the bar to use height: var(--bar-height) in CSS. Some browsers
+      // don't resolve custom properties on inline styles for height. Set height
+      // directly as an inline style on the element instead.
+      const weekly = data?.weeklyScans || [];
+      const maxCount = Math.max(1, ...weekly.map((day) => Number(day.count || 0)));
+      $('weeklyChart').innerHTML = weekly.length
+        ? weekly.map((day) => {
+            const count = Number(day.count || 0);
+            const height = Math.max(8, Math.round((count / maxCount) * 140));
+            return `
+              <div class="bar-wrap">
+                <span class="bar-count">${count}</span>
+                <div class="bar" style="height:${height}px"></div>
+                <span>${day.label}</span>
+              </div>
+            `;
+          }).join('')
+        : '<p style="padding:16px; color:var(--muted); font-size:13px;">No weekly data yet.</p>';
+
+      $('recentScans').innerHTML = (data?.recentScans || []).map((item) => `
+        <tr>
+          <td>${clean(item.user)}</td>
+          <td>${clean(item.varietyName || variety(item.predictedVariety))}</td>
+          <td>${pct(item.confidence)}</td>
+          <td>${badge(item.userFeedback || 'pending')}</td>
+          <td>${fmtDate(item.createdAt)}</td>
+        </tr>
+      `).join('') || '<tr><td colspan="5" class="muted">No scans yet.</td></tr>';
+
+      $('topVarieties').innerHTML = (data?.topVarieties || []).map((item) => `
+        <tr>
+          <td>${variety(item.predicted_variety)}</td>
+          <td>${item.count ?? item._count?.id ?? 0}</td>
+          <td>${item.accuracy === null || item.accuracy === undefined
+                ? '<span class="muted">No feedback</span>'
+                : pct(item.accuracy)}</td>
+        </tr>
+      `).join('') || '<tr><td colspan="3" class="muted">No varieties detected yet.</td></tr>';
+    }
+
+    async function loadScans() {
+      await ensureVarietyOptions();
+      const query = queryString({
+        variety: $('scanVariety').value,
+        source: $('scanSource').value,
+        confidenceLevel: $('scanConfidence').value,
+        from: $('scanFrom').value,
+        to: $('scanTo').value,
+        sort: $('scanSort').value,
+      });
+      setTableSkeleton('scanRows', 6, 7);
+      const data = await request(`/admin/scans${query ? `?${query}` : ''}`);
+      $('scanRows').innerHTML = (data || []).map((scan) => `
+        <tr>
+          <td><button class="thumb-button" data-view-scan="${esc(scan.id)}" title="View scan"><img class="thumb" src="${esc(scan.imageUrl)}" alt="" onerror="this.style.background='var(--green-soft)'; this.removeAttribute('src')" /></button></td>
+          <td>${esc(clean(scan.user?.display_name || scan.user?.email))}</td>
+          <td>${esc(clean(scan.varietyName || variety(scan.predictedVariety)))}</td>
+          <td>${pct(scan.confidence)}</td>
+          <td>${esc(clean(scan.source))}</td>
+          <td>${fmtDate(scan.createdAt)}</td>
+          <td>
+            <div class="action-row">
+              <button class="secondary" data-view-scan="${esc(scan.id)}">View</button>
+              <a class="secondary" href="${esc(scan.imageUrl)}" download="scan-${esc(scan.id)}.jpg" target="_blank" rel="noopener">Download</a>
+              <button class="danger" data-delete-scan="${esc(scan.id)}">Delete</button>
+            </div>
+          </td>
+        </tr>
+      `).join('') || '<tr><td colspan="7" class="muted">No scans found.</td></tr>';
+    }
+
+    async function loadUsers() {
+      setTableSkeleton('userRows', 6, 7);
+      const query = queryString({
+        role: $('userRole').value,
+        status: $('userStatus').value,
+        from: $('userFrom').value,
+        to: $('userTo').value,
+        sort: $('userSort').value,
+      });
+      const data = await request(`/admin/users${query ? `?${query}` : ''}`);
+      state.users = data || [];
+      $('userRows').innerHTML = (data || []).map((user) => `
+        <tr>
+          <td>${esc(clean(user.displayName || user.display_name))}</td>
+          <td>${esc(clean(user.email))}</td>
+          <td>${badge(user.role)}</td>
+          <td>${user.totalScans ?? user.total_scans ?? 0}</td>
+          <td>${fmtDate(user.lastScanAt || user.last_scan_at)}</td>
+          <td>${user.isActive !== false ? badge('active') : badge('disabled')}</td>
+          <td>
+            <div class="action-row">
+              <button class="secondary" data-view-user="${esc(user.id)}">View</button>
+              <button class="secondary" data-edit-user="${esc(user.id)}">Edit</button>
+              <button class="danger" data-delete-user="${esc(user.id)}">Delete</button>
+            </div>
+          </td>
+        </tr>
+      `).join('') || '<tr><td colspan="7" class="muted">No users found.</td></tr>';
+    }
+
+    async function loadFeedback() {
+      await ensureVarietyOptions();
+      setTableSkeleton('feedbackRows', 6, 7);
+      const query = queryString({
+        type: 'scan',
+        variety: $('feedbackVariety').value,
+        status: $('feedbackStatus').value,
+        from: $('feedbackFrom').value,
+        to: $('feedbackTo').value,
+        sort: $('feedbackSort').value,
+      });
+      const data = await request(`/admin/feedback${query ? `?${query}` : ''}`);
+      const openCount = (data || []).filter((item) => !item.reviewed).length;
+      $('feedbackBadge').hidden = openCount === 0;
+      $('feedbackBadge').textContent = String(openCount);
+      $('feedbackRows').innerHTML = (data || []).map((item) => `
+        <tr>
+          <td>${esc(clean(item.user))}</td>
+          <td>${esc(variety(item.predicted))}</td>
+          <td>${esc(clean(item.actual ? variety(item.actual) : item.scanFeedbackVariety ? variety(item.scanFeedbackVariety) : '-'))}</td>
+          <td>${esc(clean(item.notes || item.scanFeedback || 'No written comment'))}</td>
+          <td>${item.reviewed ? badge('reviewed') : badge('open')}</td>
+          <td>${fmtDate(item.createdAt)}</td>
+          <td>
+            <div class="action-row">
+              ${item.scanId ? `<button class="secondary" data-view-scan="${esc(item.scanId)}">View</button>` : ''}
+              <button class="primary" data-review="${esc(item.id)}" data-reviewed="${item.reviewed}">${item.reviewed ? 'Reopen' : 'Mark Reviewed'}</button>
+            </div>
+          </td>
+        </tr>
+      `).join('') || '<tr><td colspan="7" class="muted">No feedback found.</td></tr>';
+    }
+
+    async function loadTickets() {
+      setTableSkeleton('ticketRows', 6, 6);
+      const query = queryString({
+        status: $('ticketStatus').value,
+        from: $('ticketFrom').value,
+        to: $('ticketTo').value,
+        sort: $('ticketSort').value,
+      });
+      const data = await request(`/admin/tickets${query ? `?${query}` : ''}`);
+      state.tickets = data || [];
+      const openCount = (data || []).filter((item) => !item.reviewed).length;
+      $('ticketBadge').hidden = openCount === 0;
+      $('ticketBadge').textContent = String(openCount);
+      $('ticketRows').innerHTML = (data || []).map((ticket) => `
+        <tr>
+          <td>${esc(clean(ticket.user))}</td>
+          <td>${esc(clean(ticket.subject))}</td>
+          <td>${esc(clean(ticket.message))}</td>
+          <td>${ticket.reviewed ? badge('reviewed') : badge('open')}</td>
+          <td>${fmtDate(ticket.createdAt)}</td>
+          <td>
+            <div class="action-row">
+              <button class="secondary" data-view-ticket="${esc(ticket.id)}">View</button>
+              <button class="primary" data-review-ticket="${esc(ticket.id)}" data-reviewed="${ticket.reviewed}">${ticket.reviewed ? 'Reopen' : 'Mark Reviewed'}</button>
+            </div>
+          </td>
+        </tr>
+      `).join('') || '<tr><td colspan="6" class="muted">No tickets found.</td></tr>';
+    }
+
+    function showTicketDetails(id) {
+      const ticket = state.tickets.find((item) => item.id === id);
+      if (!ticket) return;
+      openModal('Client Ticket', `
+        <div class="detail-grid">
+          ${detailCell('User', ticket.user)}
+          ${detailCell('Email', ticket.email)}
+          ${detailCell('Subject', ticket.subject)}
+          ${detailCell('Status', ticket.reviewed ? 'reviewed' : 'open')}
+          ${detailCell('Created', fmtDate(ticket.createdAt))}
+        </div>
+        <h2>Message</h2>
+        <p>${esc(clean(ticket.message))}</p>
+        <div class="action-row">
+          <button class="primary" data-review-ticket="${esc(ticket.id)}" data-reviewed="${ticket.reviewed}">${ticket.reviewed ? 'Reopen' : 'Mark Reviewed'}</button>
+        </div>
+      `);
+    }
+
+    async function loadVarieties() {
+      setTableSkeleton('varietyRows', 6, 7);
+      const query = queryString({
+        status: $('varietyStatus').value,
+        sort: $('varietySort').value,
+      });
+      const data = await request(`/admin/varieties${query ? `?${query}` : ''}`);
+      state.varieties = data || [];
+      await ensureVarietyOptions();
+      $('varietyRows').innerHTML = (data || []).map((item) => `
+        <tr>
+          <td>${esc(clean(item.name))}</td>
+          <td>${esc(clean(item.slug))}</td>
+          <td>${esc(clean(item.origin))}</td>
+          <td>${esc(clean(item.season))}</td>
+          <td>${item.scanCount ?? 0}</td>
+          <td>${item.isActive !== false ? badge('active') : badge('disabled')}</td>
+          <td>
+            <div class="action-row">
+              <button class="secondary" data-view-variety="${esc(item.id)}">View</button>
+              <button class="secondary" data-edit-variety="${esc(item.id)}">Edit</button>
+              <button class="danger" data-delete-variety="${esc(item.id)}">Delete</button>
+            </div>
+          </td>
+        </tr>
+      `).join('') || '<tr><td colspan="7" class="muted">No varieties found.</td></tr>';
+    }
+
+    function openModal(title, body) {
+      $('modalTitle').textContent = title;
+      $('modalBody').innerHTML = body;
+      $('modal').hidden = false;
+    }
+
+    function closeModal() {
+      $('modal').hidden = true;
+      $('modalBody').innerHTML = '';
+    }
+
+    function detailCell(label, value) {
+      return `<div><span>${esc(label)}</span><strong>${esc(clean(value))}</strong></div>`;
+    }
+
+    async function showScanDetails(id) {
+      openModal('Scan Details', '<span class="skeleton" style="width:180px"></span>');
+      try {
+        const scan = await request(`/admin/scans/${encodeURIComponent(id)}`);
+        const probabilities = Object.entries(scan.probabilities || {})
+          .sort((a, b) => Number(b[1]) - Number(a[1]))
+          .slice(0, 5)
+          .map(([name, value]) => detailCell(variety(name), pct(value)))
+          .join('');
+        const feedbackItems = (scan.feedbackItems || []).map((item) => `
+          <div>
+            <span>${item.reviewed ? 'Reviewed feedback' : 'Open feedback'}</span>
+            <strong>${esc(clean(item.notes || (item.actual ? `Actual: ${variety(item.actual)}` : 'No comment')))}</strong>
+          </div>
+        `).join('');
+
+        openModal('Scan Details', `
+          <img class="scan-preview" src="${esc(scan.imageUrl)}" alt="Scan image" />
+          <div class="action-row">
+            <a class="primary" href="${esc(scan.imageUrl)}" download="scan-${esc(scan.id)}.jpg" target="_blank" rel="noopener">Download Image</a>
+          </div>
+          <div class="detail-grid">
+            ${detailCell('User', scan.user?.display_name || scan.user?.email || 'Unknown user')}
+            ${detailCell('Prediction', scan.varietyName || variety(scan.predictedVariety))}
+            ${detailCell('Confidence', pct(scan.confidence))}
+            ${detailCell('Confidence Level', scan.confidenceLevel)}
+            ${detailCell('Feedback', scan.userFeedback || 'pending')}
+            ${detailCell('Actual Variety', scan.feedbackVariety ? variety(scan.feedbackVariety) : '-')}
+            ${detailCell('Image Size', `${scan.imageWidth || '-'} x ${scan.imageHeight || '-'} px, ${fmtBytes(scan.imageSizeBytes)}`)}
+            ${detailCell('Source', scan.source)}
+            ${detailCell('Model Version', scan.modelVersion)}
+            ${detailCell('Processing', scan.processingMs ? `${scan.processingMs} ms` : '-')}
+            ${detailCell('Location', scan.latitude && scan.longitude ? `${scan.latitude}, ${scan.longitude}` : '-')}
+            ${detailCell('Created', fmtDate(scan.createdAt))}
+          </div>
+          <h2>Model Probabilities</h2>
+          <div class="detail-grid">${probabilities || '<p class="empty-note">No probability data stored.</p>'}</div>
+          <h2>Feedback Notes</h2>
+          <div class="detail-grid">${feedbackItems || '<p class="empty-note">No feedback notes for this scan.</p>'}</div>
+        `);
+      } catch (err) {
+        openModal('Scan Details', `<p class="error">${esc(err.message)}</p>`);
+      }
+    }
+
+    async function showUserDetails(id) {
+      openModal('User Details', '<span class="skeleton" style="width:180px"></span>');
+      try {
+        const user = await request(`/admin/users/${encodeURIComponent(id)}`);
+        const recent = (user.recentScans || []).map((scan) => `
+          <tr>
+            <td>${esc(clean(scan.varietyName || variety(scan.predictedVariety)))}</td>
+            <td>${pct(scan.confidence)}</td>
+            <td>${badge(scan.userFeedback || 'pending')}</td>
+            <td>${fmtDate(scan.createdAt)}</td>
+            <td><button class="secondary" data-view-scan="${esc(scan.id)}">View</button></td>
+          </tr>
+        `).join('');
+        openModal('User Details', `
+          <div class="action-row">
+            <button class="secondary" data-edit-user="${esc(user.id)}">Edit User</button>
+          </div>
+          <div class="detail-grid">
+            ${detailCell('Name', user.displayName)}
+            ${detailCell('Email', user.email)}
+            ${detailCell('Role', user.role)}
+            ${detailCell('Status', user.isActive !== false ? 'active' : 'disabled')}
+            ${detailCell('Verified', user.isVerified ? 'yes' : 'no')}
+            ${detailCell('Total Scans', user.totalScans)}
+            ${detailCell('Open Feedback', user.openFeedbackCount)}
+            ${detailCell('Feedback Items', user.feedbackCount)}
+            ${detailCell('Created', fmtDate(user.createdAt))}
+            ${detailCell('Last Login', fmtDate(user.lastLoginAt))}
+          </div>
+          <h2>Recent Scans</h2>
+          <table>
+            <thead><tr><th>Prediction</th><th>Confidence</th><th>Feedback</th><th>Date</th><th></th></tr></thead>
+            <tbody>${recent || '<tr><td colspan="5" class="muted">No scans yet.</td></tr>'}</tbody>
+          </table>
+        `);
+      } catch (err) {
+        openModal('User Details', `<p class="error">${esc(err.message)}</p>`);
+      }
+    }
+
+    function showUserForm(user = null) {
+      const isEdit = !!user;
+      openModal(isEdit ? 'Update User' : 'Create User', `
+        <form id="userForm" data-user-id="${esc(user?.id || '')}">
+          <div class="form-grid">
+            <div class="field">
+              <label>Name</label>
+              <input name="displayName" value="${esc(user?.displayName || '')}" />
+            </div>
+            <div class="field">
+              <label>Email</label>
+              <input name="email" type="email" value="${esc(user?.email || '')}" required />
+            </div>
+            <div class="field">
+              <label>Role</label>
+              <select name="role">
+                ${['user', 'seller', 'farmer', 'admin'].map((role) => `<option value="${role}" ${user?.role === role ? 'selected' : ''}>${role}</option>`).join('')}
+              </select>
+            </div>
+            <div class="field">
+              <label>Password${isEdit ? ' (leave blank to keep current)' : ''}</label>
+              <input name="password" type="password" ${isEdit ? '' : 'required'} minlength="8" />
+            </div>
+            <label><input name="isActive" type="checkbox" ${user?.isActive === false ? '' : 'checked'} /> Active</label>
+            <label><input name="isVerified" type="checkbox" ${user?.isVerified === false ? '' : 'checked'} /> Verified</label>
+          </div>
+          <div class="action-row" style="margin-top:14px">
+            <button class="primary" type="submit">${isEdit ? 'Update User' : 'Create User'}</button>
+            <button class="secondary" type="button" id="cancelUserForm">Cancel</button>
+          </div>
+          <div class="error" id="userFormError"></div>
+        </form>
+      `);
+    }
+
+    async function showVarietyDetails(id) {
+      openModal('Variety Details', '<span class="skeleton" style="width:180px"></span>');
+      try {
+        const item = await request(`/admin/varieties/${encodeURIComponent(id)}`);
+        openModal('Variety Details', `
+          ${item.banner_url || item.thumbnail_url ? `<img class="scan-preview" src="${esc(item.banner_url || item.thumbnail_url)}" alt="${esc(item.name)}" />` : ''}
+          <div class="action-row">
+            <button class="secondary" data-edit-variety="${esc(item.id)}">Edit Variety</button>
+          </div>
+          <div class="detail-grid">
+            ${detailCell('Name', item.name)}
+            ${detailCell('Slug', item.slug)}
+            ${detailCell('Scientific Name', item.scientific_name)}
+            ${detailCell('Origin', item.origin)}
+            ${detailCell('Season', item.season)}
+            ${detailCell('Price Range', item.price_range)}
+            ${detailCell('Scans', item._count?.scans ?? 0)}
+            ${detailCell('Status', item.is_active !== false ? 'active' : 'disabled')}
+            ${detailCell('Sort Order', item.sort_order)}
+            ${detailCell('Created', fmtDate(item.created_at))}
+          </div>
+          <h2>Description</h2>
+          <p>${esc(clean(item.description || 'No description yet.'))}</p>
+        `);
+      } catch (err) {
+        openModal('Variety Details', `<p class="error">${esc(err.message)}</p>`);
+      }
+    }
+
+    function showVarietyForm(item = null) {
+      const isEdit = !!item;
+      openModal(isEdit ? 'Update Variety' : 'Create Variety', `
+        <form id="varietyForm" data-variety-id="${esc(item?.id || '')}">
+          <div class="form-grid">
+            <div class="field">
+              <label>Name</label>
+              <input name="name" value="${esc(item?.name || '')}" required maxlength="100" />
+            </div>
+            <div class="field">
+              <label>Slug</label>
+              <input name="slug" value="${esc(item?.slug || '')}" maxlength="50" />
+            </div>
+            <div class="field">
+              <label>Scientific Name</label>
+              <input name="scientificName" value="${esc(item?.scientificName || item?.scientific_name || '')}" maxlength="150" />
+            </div>
+            <div class="field">
+              <label>Origin</label>
+              <input name="origin" value="${esc(item?.origin || '')}" maxlength="100" />
+            </div>
+            <div class="field">
+              <label>Season</label>
+              <input name="season" value="${esc(item?.season || '')}" maxlength="100" />
+            </div>
+            <div class="field">
+              <label>Price Range</label>
+              <input name="priceRange" value="${esc(item?.priceRange || item?.price_range || '')}" maxlength="50" />
+            </div>
+            <div class="field">
+              <label>Thumbnail URL</label>
+              <input name="thumbnailUrl" type="url" value="${esc(item?.thumbnailUrl || item?.thumbnail_url || '')}" />
+            </div>
+            <div class="field">
+              <label>Banner URL</label>
+              <input name="bannerUrl" type="url" value="${esc(item?.bannerUrl || item?.banner_url || '')}" />
+            </div>
+            <div class="field">
+              <label>Sort Order</label>
+              <input name="sortOrder" type="number" value="${esc(item?.sortOrder ?? item?.sort_order ?? 0)}" />
+            </div>
+            <label><input name="isActive" type="checkbox" ${item?.isActive === false || item?.is_active === false ? '' : 'checked'} /> Active</label>
+            <div class="field wide">
+              <label>Description</label>
+              <textarea name="description">${esc(item?.description || '')}</textarea>
+            </div>
+          </div>
+          <div class="action-row" style="margin-top:14px">
+            <button class="primary" type="submit">${isEdit ? 'Update Variety' : 'Create Variety'}</button>
+            <button class="secondary" type="button" id="cancelVarietyForm">Cancel</button>
+          </div>
+          <div class="error" id="varietyFormError"></div>
+        </form>
+      `);
+    }
+
+    async function loadCurrentView() {
+      try {
+        $('dashboardError').textContent = '';
+        if (state.view === 'overview') await loadOverview();
+        if (state.view === 'scans') await loadScans();
+        if (state.view === 'users') await loadUsers();
+        if (state.view === 'varieties') await loadVarieties();
+        if (state.view === 'feedback') await loadFeedback();
+        if (state.view === 'tickets') await loadTickets();
+      } catch (err) {
+        if (err.status === 401 || err.status === 403) {
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminUser');
+          state.token = null;
+          state.admin = null;
+          showLogin('Your admin session expired. Please sign in again.');
+        } else {
+          $('login').hidden = true;
+          $('app').hidden = false;
+          $('dashboardError').textContent = err.message || 'Could not load dashboard data.';
+        }
+      }
+    }
+
+    document.querySelectorAll('[data-view]').forEach((button) => {
+      button.addEventListener('click', () => {
+        state.view = button.dataset.view;
+        document.querySelectorAll('[data-view]').forEach((b) => b.classList.toggle('active', b === button));
+        document.querySelectorAll('.view').forEach((view) => view.classList.toggle('active', view.id === state.view));
+        // BUG FIX: pageTitle was set to button.textContent which included the
+        // icon SVG markup as text on some browsers. Use dataset.view instead.
+        const titles = { overview: 'Overview', scans: 'Scans', users: 'Users', varieties: 'Varieties', feedback: 'Feedback', tickets: 'Tickets' };
+        $('pageTitle').textContent = titles[state.view] || state.view;
+        $('pageSubtitle').textContent = state.view === 'overview'
+          ? 'Monitor users, scans, confidence, and feedback.'
+          : 'Review and manage Durian Lens records.';
+        loadCurrentView();
+      });
+    });
+
+    $('loginForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      $('loginError').textContent = '';
+      $('loginButton').disabled = true;
+      $('loginButton').textContent = 'Signing In...';
+      try {
+        await login($('email').value.trim(), $('password').value);
+      } catch (err) {
+        $('loginError').textContent = err.message;
+      } finally {
+        $('loginButton').disabled = false;
+        $('loginButton').textContent = 'Sign In';
+      }
+    });
+
+    $('logoutBtn').addEventListener('click', () => {
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminUser');
+      state.token = null;
+      state.admin = null;
+      showApp();
+    });
+
+    $('reloadScans').addEventListener('click', loadScans);
+    ['scanVariety', 'scanSource', 'scanConfidence', 'scanFrom', 'scanTo', 'scanSort'].forEach((id) => $(id).addEventListener('change', loadScans));
+    $('reloadUsers').addEventListener('click', loadUsers);
+    ['userRole', 'userStatus', 'userFrom', 'userTo', 'userSort'].forEach((id) => $(id).addEventListener('change', loadUsers));
+    $('createUserBtn').addEventListener('click', () => showUserForm());
+    $('reloadVarieties').addEventListener('click', loadVarieties);
+    ['varietyStatus', 'varietySort'].forEach((id) => $(id).addEventListener('change', loadVarieties));
+    $('createVarietyBtn').addEventListener('click', () => showVarietyForm());
+    $('reloadFeedback').addEventListener('click', loadFeedback);
+    ['feedbackVariety', 'feedbackStatus', 'feedbackFrom', 'feedbackTo', 'feedbackSort'].forEach((id) => $(id).addEventListener('change', loadFeedback));
+    $('reloadTickets').addEventListener('click', loadTickets);
+    ['ticketStatus', 'ticketFrom', 'ticketTo', 'ticketSort'].forEach((id) => $(id).addEventListener('change', loadTickets));
+    $('closeModal').addEventListener('click', closeModal);
+    $('modal').addEventListener('click', (event) => {
+      if (event.target === $('modal')) closeModal();
+    });
+
+    document.addEventListener('click', async (event) => {
+      const deleteButton = event.target.closest('[data-delete-scan]');
+      const reviewButton = event.target.closest('[data-review]');
+      const reviewTicketButton = event.target.closest('[data-review-ticket]');
+      const viewScanButton = event.target.closest('[data-view-scan]');
+      const viewUserButton = event.target.closest('[data-view-user]');
+      const viewTicketButton = event.target.closest('[data-view-ticket]');
+      const editUserButton = event.target.closest('[data-edit-user]');
+      const deleteUserButton = event.target.closest('[data-delete-user]');
+      const viewVarietyButton = event.target.closest('[data-view-variety]');
+      const editVarietyButton = event.target.closest('[data-edit-variety]');
+      const deleteVarietyButton = event.target.closest('[data-delete-variety]');
+      const cancelUserButton = event.target.closest('#cancelUserForm');
+      const cancelVarietyButton = event.target.closest('#cancelVarietyForm');
+
+      if (cancelUserButton || cancelVarietyButton) {
+        closeModal();
+        return;
+      }
+
+      if (viewScanButton) {
+        await showScanDetails(viewScanButton.dataset.viewScan);
+        return;
+      }
+
+      if (viewUserButton) {
+        await showUserDetails(viewUserButton.dataset.viewUser);
+        return;
+      }
+
+      if (viewTicketButton) {
+        showTicketDetails(viewTicketButton.dataset.viewTicket);
+        return;
+      }
+
+      if (editUserButton) {
+        const id = editUserButton.dataset.editUser;
+        let user = state.users.find((item) => item.id === id);
+        if (!user) user = await request(`/admin/users/${encodeURIComponent(id)}`);
+        showUserForm(user);
+        return;
+      }
+
+      if (deleteUserButton && confirm('Delete this user and their profile data? Their scans and feedback will remain but become unassigned.')) {
+        try {
+          await request(`/admin/users/${deleteUserButton.dataset.deleteUser}`, { method: 'DELETE' });
+          await loadUsers();
+          closeModal();
+        } catch (err) {
+          alert('Delete failed: ' + err.message);
+        }
+        return;
+      }
+
+      if (viewVarietyButton) {
+        await showVarietyDetails(viewVarietyButton.dataset.viewVariety);
+        return;
+      }
+
+      if (editVarietyButton) {
+        const id = editVarietyButton.dataset.editVariety;
+        let item = state.varieties.find((varietyItem) => varietyItem.id === id);
+        if (!item) item = await request(`/admin/varieties/${encodeURIComponent(id)}`);
+        showVarietyForm(item);
+        return;
+      }
+
+      if (deleteVarietyButton && confirm('Delete this variety? If scans already use it, it will be disabled instead.')) {
+        try {
+          await request(`/admin/varieties/${deleteVarietyButton.dataset.deleteVariety}`, { method: 'DELETE' });
+          state.varieties = [];
+          state.varietyOptions = [];
+          await loadVarieties();
+          closeModal();
+        } catch (err) {
+          alert('Delete failed: ' + err.message);
+        }
+        return;
+      }
+
+      if (deleteButton && confirm('Delete this scan from the database?')) {
+        try {
+          await request(`/admin/scans/${deleteButton.dataset.deleteScan}`, { method: 'DELETE' });
+          await loadScans();
+        } catch (err) {
+          alert('Delete failed: ' + err.message);
+        }
+        return;
+      }
+
+      if (reviewButton) {
+        try {
+          const reviewed = reviewButton.dataset.reviewed !== 'true';
+          await request(`/admin/feedback/${encodeURIComponent(reviewButton.dataset.review)}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ reviewed }),
+          });
+          await loadFeedback();
+        } catch (err) {
+          alert('Update failed: ' + err.message);
+        }
+        return;
+      }
+
+      if (reviewTicketButton) {
+        try {
+          const reviewed = reviewTicketButton.dataset.reviewed !== 'true';
+          await request(`/admin/tickets/${encodeURIComponent(reviewTicketButton.dataset.reviewTicket)}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ reviewed }),
+          });
+          closeModal();
+          await loadTickets();
+        } catch (err) {
+          alert('Update failed: ' + err.message);
+        }
+      }
+    });
+
+    document.addEventListener('submit', async (event) => {
+      const form = event.target.closest('#userForm');
+      const varietyForm = event.target.closest('#varietyForm');
+      if (!form && !varietyForm) return;
+      event.preventDefault();
+      if (varietyForm) {
+        const varietyId = varietyForm.dataset.varietyId;
+        const formData = new FormData(varietyForm);
+        const payload = {
+          name: String(formData.get('name') || '').trim(),
+          slug: String(formData.get('slug') || '').trim() || null,
+          scientificName: String(formData.get('scientificName') || '').trim() || null,
+          description: String(formData.get('description') || '').trim() || null,
+          origin: String(formData.get('origin') || '').trim() || null,
+          season: String(formData.get('season') || '').trim() || null,
+          priceRange: String(formData.get('priceRange') || '').trim() || null,
+          thumbnailUrl: String(formData.get('thumbnailUrl') || '').trim() || null,
+          bannerUrl: String(formData.get('bannerUrl') || '').trim() || null,
+          sortOrder: Number(formData.get('sortOrder') || 0),
+          isActive: formData.has('isActive'),
+        };
+
+        $('varietyFormError').textContent = '';
+        try {
+          await request(varietyId ? `/admin/varieties/${encodeURIComponent(varietyId)}` : '/admin/varieties', {
+            method: varietyId ? 'PATCH' : 'POST',
+            body: JSON.stringify(payload),
+          });
+          closeModal();
+          state.varieties = [];
+          state.varietyOptions = [];
+          await loadVarieties();
+          if (state.view === 'overview') await loadOverview();
+        } catch (err) {
+          $('varietyFormError').textContent = err.message;
+        }
+        return;
+      }
+
+      const userId = form.dataset.userId;
+      const formData = new FormData(form);
+      const payload = {
+        displayName: String(formData.get('displayName') || '').trim() || null,
+        email: String(formData.get('email') || '').trim(),
+        role: String(formData.get('role') || 'user'),
+        isActive: formData.has('isActive'),
+        isVerified: formData.has('isVerified'),
+      };
+      const password = String(formData.get('password') || '');
+      if (password) payload.password = password;
+
+      $('userFormError').textContent = '';
+      try {
+        await request(userId ? `/admin/users/${encodeURIComponent(userId)}` : '/admin/users', {
+          method: userId ? 'PATCH' : 'POST',
+          body: JSON.stringify(payload),
+        });
+        closeModal();
+        await loadUsers();
+        if (state.view === 'overview') await loadOverview();
+      } catch (err) {
+        $('userFormError').textContent = err.message;
+      }
+    });
+
+    hydrateNavIcons();
+    updateAdminFooter();
+    showApp();
+  </script>
+</body>
+</html>

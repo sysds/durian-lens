@@ -172,7 +172,8 @@ export const scanAPI = {
     id: string,
     feedback: 'correct' | 'incorrect' | 'unsure',
     actualVariety?: string,
-  ) => api.post(`/scan/${id}/feedback`, { feedback, actualVariety }),
+    notes?: string,
+  ) => api.post(`/scan/${id}/feedback`, { feedback, actualVariety, notes }),
 };
 
 // ── History ───────────────────────────────────────────────────
@@ -192,7 +193,7 @@ export const varietyAPI = {
 // ── Users ────────────────────────────────────────────────────
 export const userAPI = {
   me: () => api.get('/users/me').then(r => r.data),
-  updateMe: (data: { displayName?: string; avatarUrl?: string }) => api.patch('/users/me', data).then(r => r.data),
+  updateMe: (data: { displayName?: string }) => api.patch('/users/me', data).then(r => r.data),
   submitSupportTicket: (data: { subject: string; message: string }) =>
     api.post('/users/support-tickets', data).then(r => r.data),
 };

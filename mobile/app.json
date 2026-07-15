@@ -25,7 +25,13 @@
         "foregroundImage": "./assets/durian-lens-logo.jpg",
         "backgroundColor": "#2E7D32"
       },
-      "package": "com.durianlens.app"
+      "package": "com.durianlens.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "plugins": [
       [
@@ -47,6 +53,11 @@
         }
       ],
       "expo-web-browser"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "a9794968-e722-4569-ae32-b37ec621a313"
+      }
+    }
   }
 }

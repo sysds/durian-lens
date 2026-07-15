@@ -16,11 +16,11 @@ const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET!;
 const ACCESS_TOKEN_TTL = '15m';
 const REFRESH_TOKEN_TTL = 30 * 24 * 60 * 60; // 30 days in seconds
 
-function generateTokens(userId: string, jti: string) {
-  const accessToken = jwt.sign({ sub: userId, type: 'access' }, JWT_SECRET, {
+function generateTokens(userId: string, role: string, jti: string) {
+  const accessToken = jwt.sign({ sub: userId, role, type: 'access' }, JWT_SECRET, {
     expiresIn: ACCESS_TOKEN_TTL,
   });
-  const refreshToken = jwt.sign({ sub: userId, jti, type: 'refresh' }, JWT_REFRESH_SECRET, {
+  const refreshToken = jwt.sign({ sub: userId, role, jti, type: 'refresh' }, JWT_REFRESH_SECRET, {
     expiresIn: REFRESH_TOKEN_TTL,
   });
   return { accessToken, refreshToken };
@@ -57,7 +57,7 @@ router.post('/register',
     });
 
     const tokenId = uuidv4();
-    const { accessToken, refreshToken } = generateTokens(user.id, tokenId);
+    const { accessToken, refreshToken } = generateTokens(user.id, user.role, tokenId);
 
     const tokenHash = await bcrypt.hash(refreshToken, 8);
     await redis.setex(
@@ -104,7 +104,7 @@ router.post('/login',
     }
 
     const tokenId = uuidv4();
-    const { accessToken, refreshToken } = generateTokens(user.id, tokenId);
+    const { accessToken, refreshToken } = generateTokens(user.id, user.role, tokenId);
 
     // Update last login
     await prisma.users.update({
@@ -124,7 +124,7 @@ router.post('/login',
     res.json({
       success: true,
       data: {
-        user: { id: user.id, email: user.email, displayName: user.display_name, role: user.role, avatarUrl: user.avatar_url },
+        user: { id: user.id, email: user.email, displayName: user.display_name, role: user.role },
         accessToken,
         refreshToken,
       },
@@ -167,7 +167,6 @@ router.post('/google',
           where: { id: existing.id },
           data: {
             display_name: existing.display_name || displayName,
-            avatar_url: existing.avatar_url || profile.picture || null,
             last_login_at: new Date(),
           },
         });
@@ -178,7 +177,6 @@ router.post('/google',
           email: profile.email,
           password_hash: passwordHash,
           display_name: displayName,
-          avatar_url: profile.picture || null,
           role: 'user',
           is_verified: !!profile.email_verified,
           last_login_at: new Date(),
@@ -189,7 +187,7 @@ router.post('/google',
     });
 
     const tokenId = uuidv4();
-    const { accessToken, refreshToken } = generateTokens(user.id, tokenId);
+    const { accessToken, refreshToken } = generateTokens(user.id, user.role, tokenId);
     const tokenHash = await bcrypt.hash(refreshToken, 8);
     await redis.setex(
       `refresh:${user.id}:${tokenId}`,
@@ -207,7 +205,6 @@ router.post('/google',
           email: user.email,
           displayName: user.display_name,
           role: user.role,
-          avatarUrl: user.avatar_url,
         },
         accessToken,
         refreshToken,
@@ -246,7 +243,8 @@ router.post('/refresh', async (req: Request, res: Response) => {
   await redis.del(redisKey);
 
   const newTokenId = uuidv4();
-  const { accessToken, refreshToken: newRefreshToken } = generateTokens(payload.sub, newTokenId);
+  const role = payload.role || 'user';
+  const { accessToken, refreshToken: newRefreshToken } = generateTokens(payload.sub, role, newTokenId);
 
   const newTokenHash = await bcrypt.hash(newRefreshToken, 8);
   await redis.setex(
@@ -282,7 +280,6 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
       id: user.id,
       email: user.email,
       displayName: user.display_name,
-      avatarUrl: user.avatar_url,
       role: user.role,
       isVerified: user.is_verified,
       stats: user.user_stats,

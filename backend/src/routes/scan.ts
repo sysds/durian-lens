@@ -188,28 +188,36 @@ router.post('/', upload.single('image'), async (req: AuthRequest, res: Response)
 // ── POST /scan/:id/feedback ──────────────────────────────────
 router.post('/:id/feedback', async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
-  const { feedback, actualVariety } = req.body;
+  const { feedback, actualVariety, notes } = req.body;
 
   if (!['correct', 'incorrect', 'unsure'].includes(feedback)) {
     throw new AppError('Invalid feedback value', 400, 'INVALID_FEEDBACK');
+  }
+  if (notes !== undefined && String(notes).length > 1000) {
+    throw new AppError('Feedback notes must be 1000 characters or less', 400, 'INVALID_NOTES');
   }
 
   const scan = await prisma.scans.findFirst({ where: { id, user_id: req.userId } });
   if (!scan) throw new AppError('Scan not found', 404, 'NOT_FOUND');
 
+  const cleanNotes = typeof notes === 'string' && notes.trim() ? notes.trim() : null;
+  const cleanActual = typeof actualVariety === 'string' && actualVariety.trim() ? actualVariety.trim() : null;
+
   await prisma.scans.update({
     where: { id },
-    data: { user_feedback: feedback, feedback_variety: actualVariety || null, feedback_at: new Date() },
+    data: { user_feedback: feedback, feedback_variety: cleanActual, feedback_at: new Date() },
   });
 
-  if (feedback === 'incorrect') {
+  await prisma.ml_feedback.deleteMany({ where: { scan_id: id, user_id: req.userId } });
+  if (feedback !== 'correct' || cleanNotes) {
     await prisma.ml_feedback.create({
       data: {
         scan_id: id,
         user_id: req.userId,
         predicted: scan.predicted_variety!,
-        actual: actualVariety,
+        actual: cleanActual,
         confidence: scan.confidence?.toNumber(),
+        notes: cleanNotes,
       },
     });
   }

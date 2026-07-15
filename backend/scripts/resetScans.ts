@@ -49,14 +49,10 @@ async function resetScans() {
   const deletedScans = await prisma.scans.deleteMany({});
   console.log(`Deleted ${deletedScans.count} scan record(s).`);
 
-  // 4. Reset user stats (set total_scans to 0, clear favorite_variety, etc.)
+  // 4. Reset user scan stats
   const updatedStats = await prisma.user_stats.updateMany({
     data: {
       total_scans: 0,
-      scans_today: 0,
-      favorite_variety: null,
-      accuracy_rate: null,
-      streak_days: 0,
       last_scan_at: null,
     },
   });

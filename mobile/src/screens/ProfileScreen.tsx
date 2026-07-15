@@ -134,7 +134,6 @@ export default function ProfileScreen({ navigation }: any) {
           <>
             <Text style={styles.name}>{displayName}</Text>
             <Text style={styles.email}>{email}</Text>
-            {user?.role ? <Text style={styles.role}>{user.role}</Text> : null}
             <AnimatedPressable style={styles.editBtn} onPress={() => setEditing(true)}>
               <Text style={styles.editBtnText}>Edit Profile</Text>
             </AnimatedPressable>
@@ -270,13 +269,6 @@ const styles = StyleSheet.create({
   avatarText: { color: COLORS.white, fontSize: 32, fontWeight: '700' },
   name: { fontSize: 20, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 2 },
   email: { fontSize: 13, color: COLORS.textSecondary, marginBottom: 2 },
-  role: {
-    fontSize: 11,
-    color: COLORS.primaryDark,
-    textTransform: 'capitalize',
-    fontWeight: '600',
-    letterSpacing: 0.5,
-  },
   editBtn: {
     marginTop: 10,
     paddingVertical: 6,

@@ -9,6 +9,7 @@ import {
   Share,
   Alert,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
@@ -30,6 +31,10 @@ export default function ResultScreen({ navigation }: any) {
   const [loadingScan, setLoadingScan] = useState(false);
   const [saved, setSaved] = useState(false);
   const [feedbackSent, setFeedbackSent] = useState<string | null>(null);
+  const [selectedFeedback, setSelectedFeedback] = useState<'correct' | 'incorrect' | 'unsure' | null>(null);
+  const [feedbackNotes, setFeedbackNotes] = useState('');
+  const [actualVariety, setActualVariety] = useState('');
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
   const [localImageUri, setLocalImageUri] = useState<string | null>(null);
 
   useEffect(() => {
@@ -117,15 +122,28 @@ export default function ResultScreen({ navigation }: any) {
 
   useEffect(() => {
     setFeedbackSent(scan?.userFeedback || null);
+    setSelectedFeedback(scan?.userFeedback || null);
   }, [scan?.id, scan?.userFeedback]);
 
-  const sendFeedback = async (feedback: 'correct' | 'incorrect' | 'unsure') => {
-    if (!scan?.id) return;
+  const sendFeedback = async () => {
+    if (!scan?.id || !selectedFeedback) return;
+    if (selectedFeedback === 'incorrect' && !actualVariety.trim()) {
+      Alert.alert('Correct Variety Needed', 'Please enter the variety you expected so the team can review it.');
+      return;
+    }
+    setSubmittingFeedback(true);
     try {
-      await dispatch(submitFeedbackThunk({ id: scan.id, feedback })).unwrap();
-      setFeedbackSent(feedback);
-    } catch {
+      await dispatch(submitFeedbackThunk({
+        id: scan.id,
+        feedback: selectedFeedback,
+        variety: actualVariety.trim() || undefined,
+        notes: feedbackNotes.trim() || undefined,
+      })).unwrap();
+      setFeedbackSent(selectedFeedback);
+      } catch {
       Alert.alert('Error', 'Failed to submit feedback. Please try again.');
+    } finally {
+      setSubmittingFeedback(false);
     }
   };
 
@@ -266,31 +284,63 @@ export default function ResultScreen({ navigation }: any) {
 
       {/* Feedback */}
       <View style={styles.feedbackCard}>
-        <Text style={styles.feedbackTitle}>Was this correct?</Text>
+        <Text style={styles.feedbackTitle}>Review this prediction</Text>
+        <Text style={styles.feedbackHint}>Your feedback helps improve future Durian Lens recognition.</Text>
         <View style={styles.feedbackRow}>
           <AnimatedPressable
-            style={[styles.feedbackBtn, feedbackSent === 'correct' && styles.feedbackBtnActive]}
-            onPress={() => sendFeedback('correct')}
+            style={[styles.feedbackBtn, selectedFeedback === 'correct' && styles.feedbackBtnActive]}
+            onPress={() => setSelectedFeedback('correct')}
             disabled={!!feedbackSent}
           >
             <Text style={styles.feedbackBtnText}>{'\u2713'} Correct</Text>
           </AnimatedPressable>
           <AnimatedPressable
-            style={[styles.feedbackBtn, feedbackSent === 'incorrect' && styles.feedbackBtnActive]}
-            onPress={() => sendFeedback('incorrect')}
+            style={[styles.feedbackBtn, selectedFeedback === 'incorrect' && styles.feedbackBtnActive]}
+            onPress={() => setSelectedFeedback('incorrect')}
             disabled={!!feedbackSent}
           >
             <Text style={styles.feedbackBtnText}>{'\u2715'} Wrong</Text>
           </AnimatedPressable>
           <AnimatedPressable
-            style={[styles.feedbackBtn, feedbackSent === 'unsure' && styles.feedbackBtnActive]}
-            onPress={() => sendFeedback('unsure')}
+            style={[styles.feedbackBtn, selectedFeedback === 'unsure' && styles.feedbackBtnActive]}
+            onPress={() => setSelectedFeedback('unsure')}
             disabled={!!feedbackSent}
           >
             <Text style={styles.feedbackBtnText}>? Unsure</Text>
           </AnimatedPressable>
         </View>
-        {feedbackSent ? <Text style={styles.feedbackThanks}>Thanks for your feedback!</Text> : null}
+        {!feedbackSent && selectedFeedback === 'incorrect' ? (
+          <TextInput
+            style={styles.feedbackInput}
+            value={actualVariety}
+            onChangeText={setActualVariety}
+            placeholder="Correct variety, if known"
+            placeholderTextColor={COLORS.textTertiary}
+          />
+        ) : null}
+        {!feedbackSent ? (
+          <TextInput
+            style={[styles.feedbackInput, styles.feedbackNotesInput]}
+            value={feedbackNotes}
+            onChangeText={setFeedbackNotes}
+            placeholder="Add a note for the review team (optional)"
+            placeholderTextColor={COLORS.textTertiary}
+            multiline
+            textAlignVertical="top"
+            maxLength={1000}
+          />
+        ) : null}
+        {feedbackSent ? (
+          <Text style={styles.feedbackThanks}>Thanks. Your review has been sent to the admin team.</Text>
+        ) : (
+          <AnimatedPressable
+            style={[styles.feedbackSubmit, !selectedFeedback && styles.feedbackSubmitDisabled]}
+            onPress={sendFeedback}
+            disabled={!selectedFeedback || submittingFeedback}
+          >
+            {submittingFeedback ? <ActivityIndicator color={COLORS.white} /> : <Text style={styles.feedbackSubmitText}>Submit Review</Text>}
+          </AnimatedPressable>
+        )}
       </View>
 
       {/* Actions */}
@@ -534,11 +584,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: COLORS.textPrimary,
+    marginBottom: 4,
+  },
+  feedbackHint: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    lineHeight: 18,
     marginBottom: 12,
   },
   feedbackRow: {
     flexDirection: 'row',
     gap: 8,
+    marginBottom: 12,
   },
   feedbackBtn: {
     flex: 1,
@@ -556,6 +613,34 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     color: COLORS.textSecondary,
+  },
+  feedbackInput: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 10,
+    color: COLORS.textPrimary,
+    backgroundColor: COLORS.background,
+    fontSize: 14,
+  },
+  feedbackNotesInput: {
+    minHeight: 92,
+  },
+  feedbackSubmit: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  feedbackSubmitDisabled: {
+    opacity: 0.45,
+  },
+  feedbackSubmitText: {
+    color: COLORS.white,
+    fontSize: 14,
+    fontWeight: '700',
   },
   feedbackThanks: {
     marginTop: 10,

@@ -9,14 +9,16 @@
     "start": "node dist/index.js",
     "lint": "eslint src --ext .ts",
     "test": "jest --coverage",
+    "db:studio": "prisma studio",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx src/utils/seed.ts",
-    "db:generate": "prisma generate"
+    "db:generate": "prisma generate",
+    "admin:promote": "tsx scripts/promoteAdmin.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.540.0",
     "@aws-sdk/s3-request-presigner": "^3.540.0",
-    "@prisma/client": "^5.11.0",
+    "@prisma/client": "^5.22.0",
     "axios": "^1.6.8",
     "bcryptjs": "^2.4.3",
     "compression": "^1.7.4",
@@ -49,7 +51,7 @@
     "@typescript-eslint/parser": "^7.5.0",
     "eslint": "^8.57.0",
     "jest": "^29.7.0",
-    "prisma": "^5.11.0",
+    "prisma": "^5.22.0",
     "ts-jest": "^29.1.2",
     "tsx": "^4.7.2",
     "typescript": "^5.4.3"
