@@ -79,6 +79,7 @@ router.post('/', upload.single('image'), async (req: AuthRequest, res: Response)
     const form = new FormData();
     form.append('image', processedBuffer, { filename: 'image.jpg', contentType: 'image/jpeg' });
 
+    logger.info(`Calling ML service: ${ML_SERVICE_URL}/predict`);
     const mlResponse = await axios.post(`${ML_SERVICE_URL}/predict`, form, {
       headers: form.getHeaders(),
       timeout: 30000,
@@ -86,7 +87,17 @@ router.post('/', upload.single('image'), async (req: AuthRequest, res: Response)
     mlResult = mlResponse.data;
     logger.info(`ML result: ${mlResult.variety} (${(mlResult.confidence * 100).toFixed(1)}%)`);
   } catch (err: any) {
-    logger.error('ML service error:', err.message);
+    const mlError = axios.isAxiosError(err)
+      ? {
+          message: err.message,
+          code: err.code,
+          status: err.response?.status,
+          data: err.response?.data,
+          url: `${ML_SERVICE_URL}/predict`,
+        }
+      : { message: err?.message || String(err), url: `${ML_SERVICE_URL}/predict` };
+
+    logger.error('ML service error:', mlError);
 
     // In dev, return a mock result if ML is not available
     if (process.env.NODE_ENV !== 'production') {
@@ -104,7 +115,15 @@ router.post('/', upload.single('image'), async (req: AuthRequest, res: Response)
         model_version: 'mock-1.0',
       };
     } else {
-      throw new AppError('AI recognition service unavailable. Please try again.', 503, 'ML_SERVICE_ERROR');
+      deleteFromS3(imageKey).catch((deleteErr: any) => {
+        logger.error(`Failed to clean up image after ML error ${imageKey}:`, deleteErr);
+      });
+
+      return res.status(503).json({
+        success: false,
+        message: 'AI recognition service unavailable. Please try again.',
+        code: 'ML_SERVICE_ERROR',
+      });
     }
   }
 
