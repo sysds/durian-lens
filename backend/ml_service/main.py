@@ -32,6 +32,7 @@ MODEL_URL     = os.getenv(
 )
 MODEL_VERSION = "1.0.0"
 DEVICE        = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+ENABLE_TTA    = os.getenv("ENABLE_TTA", "false").lower() == "true"
 
 # Will be set after loading the checkpoint
 CLASSES: list[str] = []
@@ -199,8 +200,10 @@ class HealthResponse(BaseModel):
 
 def run_inference(image: Image.Image) -> tuple[str, float, dict]:
     all_probs = []
+    transforms = TTA_TRANSFORMS if ENABLE_TTA else TTA_TRANSFORMS[:1]
+
     with torch.no_grad():
-        for tf in TTA_TRANSFORMS:
+        for tf in transforms:
             try:
                 t = tf(image).unsqueeze(0).to(DEVICE)
                 logits = state.model(t)
@@ -232,12 +235,15 @@ async def health():
 
 @app.post("/predict", response_model=PredictResponse)
 async def predict(image: UploadFile = File(...)):
+    logger.info(f"Predict request received: {image.filename} ({image.content_type})")
+
     if state.model is None:
         raise HTTPException(503, "Model not loaded")
 
     start = time.time()
     try:
         data = await image.read()
+        logger.info(f"Predict image bytes: {len(data)}")
         img  = Image.open(BytesIO(data)).convert("RGB")
     except Exception as e:
         raise HTTPException(422, f"Cannot read image: {e}")

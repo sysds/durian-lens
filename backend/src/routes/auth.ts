@@ -217,43 +217,47 @@ router.post('/google',
 );
 
 // ── POST /auth/refresh ───────────────────────────────────────
-router.post('/refresh', async (req: Request, res: Response) => {
-  const { refreshToken } = req.body;
-  if (!refreshToken) throw new AppError('Refresh token required', 400, 'MISSING_TOKEN');
-
-  let payload: any;
+router.post('/refresh', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    payload = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
-  } catch {
-    throw new AppError('Invalid or expired refresh token', 401, 'INVALID_TOKEN');
+    const { refreshToken } = req.body;
+    if (!refreshToken) throw new AppError('Refresh token required', 400, 'MISSING_TOKEN');
+
+    let payload: any;
+    try {
+      payload = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
+    } catch {
+      throw new AppError('Invalid or expired refresh token', 401, 'INVALID_TOKEN');
+    }
+
+    if (payload.type !== 'refresh') throw new AppError('Invalid token type', 401, 'INVALID_TOKEN');
+
+    // Verify token exists in Redis (Revocation Check)
+    const redisKey = `refresh:${payload.sub}:${payload.jti}`;
+    const cached = await redis.get(redisKey);
+    if (!cached) throw new AppError('Token revoked or expired', 401, 'INVALID_TOKEN');
+
+    const { hash } = JSON.parse(cached);
+    const isValid = await bcrypt.compare(refreshToken, hash);
+    if (!isValid) throw new AppError('Invalid token', 401, 'INVALID_TOKEN');
+
+    // Token Rotation: Invalidate old token and issue new one
+    await redis.del(redisKey);
+
+    const newTokenId = uuidv4();
+    const role = payload.role || 'user';
+    const { accessToken, refreshToken: newRefreshToken } = generateTokens(payload.sub, role, newTokenId);
+
+    const newTokenHash = await bcrypt.hash(newRefreshToken, 8);
+    await redis.setex(
+      `refresh:${payload.sub}:${newTokenId}`,
+      REFRESH_TOKEN_TTL,
+      JSON.stringify({ hash: newTokenHash }),
+    );
+
+    res.json({ success: true, data: { accessToken, refreshToken: newRefreshToken } });
+  } catch (err) {
+    next(err);
   }
-
-  if (payload.type !== 'refresh') throw new AppError('Invalid token type', 401, 'INVALID_TOKEN');
-
-  // Verify token exists in Redis (Revocation Check)
-  const redisKey = `refresh:${payload.sub}:${payload.jti}`;
-  const cached = await redis.get(redisKey);
-  if (!cached) throw new AppError('Token revoked or expired', 401, 'INVALID_TOKEN');
-
-  const { hash } = JSON.parse(cached);
-  const isValid = await bcrypt.compare(refreshToken, hash);
-  if (!isValid) throw new AppError('Invalid token', 401, 'INVALID_TOKEN');
-
-  // Token Rotation: Invalidate old token and issue new one
-  await redis.del(redisKey);
-
-  const newTokenId = uuidv4();
-  const role = payload.role || 'user';
-  const { accessToken, refreshToken: newRefreshToken } = generateTokens(payload.sub, role, newTokenId);
-
-  const newTokenHash = await bcrypt.hash(newRefreshToken, 8);
-  await redis.setex(
-    `refresh:${payload.sub}:${newTokenId}`,
-    REFRESH_TOKEN_TTL,
-    JSON.stringify({ hash: newTokenHash }),
-  );
-
-  res.json({ success: true, data: { accessToken, refreshToken: newRefreshToken } });
 });
 
 // ── POST /auth/logout ────────────────────────────────────────
