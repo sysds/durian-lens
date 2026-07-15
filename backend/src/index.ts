@@ -55,12 +55,10 @@ app.use(`${API_VERSION}/admin`, (_req, res, next) => {
   next();
 });
 
-// ── Serve uploaded images locally in dev ─────────────────────
-if (process.env.NODE_ENV !== 'production') {
-  const uploadsDir = path.join(process.cwd(), 'uploads');
-  app.use('/uploads', express.static(uploadsDir));
-  logger.info(`Serving local uploads from ${uploadsDir}`);
-}
+// Serve local fallback uploads in every environment.
+const uploadsDir = path.join(process.cwd(), 'uploads');
+app.use('/uploads', express.static(uploadsDir));
+logger.info(`Serving local uploads from ${uploadsDir}`);
 
 const adminDir = path.join(process.cwd(), 'public/admin');
 app.get(['/admin', '/admin/'], (_req, res) => {
