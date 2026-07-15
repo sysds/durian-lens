@@ -152,7 +152,6 @@ export const performScanThunk = createAsyncThunk(
     try {
       return await scanAPI.scan(imageUri, source, coords);
     } catch (err: any) {
-      console.error('Scan error:', err?.message || err);
       return rejectWithValue(err?.message || 'Scan failed. Please try again.');
     }
   }

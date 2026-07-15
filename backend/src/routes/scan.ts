@@ -82,7 +82,7 @@ router.post('/', upload.single('image'), async (req: AuthRequest, res: Response)
     logger.info(`Calling ML service: ${ML_SERVICE_URL}/predict`);
     const mlResponse = await axios.post(`${ML_SERVICE_URL}/predict`, form, {
       headers: form.getHeaders(),
-      timeout: 30000,
+      timeout: 120000,
     });
     mlResult = mlResponse.data;
     logger.info(`ML result: ${mlResult.variety} (${(mlResult.confidence * 100).toFixed(1)}%)`);

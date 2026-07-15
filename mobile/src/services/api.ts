@@ -160,12 +160,7 @@ export const scanAPI = {
     source: 'camera' | 'gallery' = 'camera',
     coords?: { lat: number; lng: number },
   ) => {
-    try {
-      return await scanUpload(imageUri, source, coords);
-    } catch (err: any) {
-      console.error('Scan upload error:', err?.message || err);
-      throw err;
-    }
+    return scanUpload(imageUri, source, coords);
   },
 
   getById: (id: string) => api.get(`/scan/${id}`).then(r => r.data),
